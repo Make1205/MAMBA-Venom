@@ -1,9 +1,9 @@
-MAMBA-Venom: Plain-LWE KEM with Public Double-Dither Quantization
-=================================================================
+Venom: Plain-LWE KEM with Public Double-Dither Quantization
+===========================================================
 
-`MAMBA-Venom` is a C/Python implementation repository for a plain-LWE key encapsulation mechanism.
+`Venom` is a C/Python implementation repository for a plain-LWE key encapsulation mechanism.
 The implemented core mechanism uses **public two-layer dither quantization** (双层公开抖动量化),
-including the ephemeral variant in `eMAMBA-Venom`.
+including the ephemeral variant in `eVenom`.
 
 ## Security level variants
 
@@ -16,12 +16,22 @@ Each level supports matrix generation with AES128 or SHAKE128 in the current cod
 ## Repository contents
 
 - [`common/`](common/): shared AES/SHA3/random utilities.
-- [`MAMBA-Venom/`](MAMBA-Venom/): standard variant implementation and tests.
-- [`eMAMBA-Venom/`](eMAMBA-Venom/): ephemeral variant implementation and tests.
+- [`Venom/`](Venom/): standard variant implementation and tests.
+- [`eVenom/`](eVenom/): ephemeral variant implementation and tests.
 - [`LICENSE`](LICENSE): license text.
 
-## Notes for current stage
+## Paper
 
-- Documentation and naming are aligned to `MAMBA-Venom`.
-- The deprecated in-repo estimator scripts are removed in this stage.
-- No new unimplemented functionality is declared in this README.
+```bibtex
+@misc{cryptoeprint:2024/714,
+      author = {Shanxiang Lyu and Ling Liu and Cong Ling},
+      title = {Learning With Quantization: A Ciphertext Efficient Lattice Problem with Tight Security Reduction from {LWE}},
+      howpublished = {Cryptology {ePrint} Archive, Paper 2024/714},
+      year = {2024},
+      url = {https://eprint.iacr.org/2024/714}
+}
+```
+
+## Contact
+
+- Email: `your-email@example.com` (请替换为你的实际邮箱)
