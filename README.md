@@ -2,7 +2,7 @@ Venom: Plain-LWE KEM with Public Double-Dither Quantization
 ===========================================================
 
 `Venom` is a C/Python implementation repository for a plain-LWE key encapsulation mechanism.
-The implemented core mechanism uses **public two-layer dither quantization** (双层公开抖动量化),
+The implemented core mechanism uses **public two-layer dither quantization**,
 including the ephemeral variant in `eVenom`.
 
 ## Security level variants
@@ -34,4 +34,4 @@ Each level supports matrix generation with AES128 or SHAKE128 in the current cod
 
 ## Contact
 
-- Email: `your-email@example.com` (请替换为你的实际邮箱)
+- Email: `make2024@stu2024.jnu.edu.cn` (请替换为你的实际邮箱)
