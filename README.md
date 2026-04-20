@@ -34,4 +34,4 @@ Each level supports matrix generation with AES128 or SHAKE128 in the current cod
 
 ## Contact
 
-- Email: `make2024@stu2024.jnu.edu.cn` (请替换为你的实际邮箱)
+- Email: `make2024@stu2024.jnu.edu.cn`
