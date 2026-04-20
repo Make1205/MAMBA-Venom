@@ -43,6 +43,13 @@ uint16_t CDF_TABLE_LEN = 7;
 
 #include "kem.c"
 #include "noise.c"
-// NOTE: keep the reference matrix/arithmetic backend for this parameter set.
-// The AVX2 backend has shown instability under optimized builds in this branch.
+#if defined(USE_REFERENCE)
 #include "venom_macrify_reference.c"
+#else
+// Keep the original optimized backend path, but disable the AVX2 specialization
+// for this parameter set to avoid the L5 runtime crash under aggressive optimization.
+#if defined(USE_AVX2)
+#undef USE_AVX2
+#endif
+#include "venom_macrify.c"
+#endif
