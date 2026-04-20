@@ -13,16 +13,13 @@
 #include <valgrind/memcheck.h>
 #endif
 
-#define DITHER_DOMAIN_PK_1 0xA1
-#define DITHER_DOMAIN_PK_2 0xA2
-#define DITHER_DOMAIN_U_1  0xB1
-#define DITHER_DOMAIN_U_2  0xB2
-#define DITHER_DOMAIN_V_1  0xC1
-#define DITHER_DOMAIN_V_2  0xC2
+#define DITHER_DOMAIN_PK 0xA1
+#define DITHER_DOMAIN_U  0xB1
+#define DITHER_DOMAIN_V  0xC1
 
-#define PK_PACKED_BYTES ((PARAMS_PK_LOGP2 * PARAMS_N * PARAMS_NBAR) / 8)
-#define CT_C1_PACKED_BYTES ((PARAMS_U_LOGP2 * PARAMS_N * PARAMS_NBAR) / 8)
-#define CT_C2_PACKED_BYTES ((PARAMS_V_LOGP2 * PARAMS_NBAR * PARAMS_NBAR) / 8)
+#define PK_PACKED_BYTES ((PARAMS_PK_LOGP * PARAMS_N * PARAMS_NBAR) / 8)
+#define CT_C1_PACKED_BYTES ((PARAMS_U_LOGP * PARAMS_N * PARAMS_NBAR) / 8)
+#define CT_C2_PACKED_BYTES ((PARAMS_V_LOGP * PARAMS_NBAR * PARAMS_NBAR) / 8)
 
 static inline uint16_t frodo_q_mask_local(void)
 {
@@ -70,58 +67,48 @@ static int frodo_expand_dither_local(uint16_t *d, size_t n, const uint8_t *seed,
     return 0;
 }
 
-static int frodo_double_quantize_local(uint16_t *split, const uint16_t *in, size_t n, const uint8_t *seed, size_t seedlen, uint8_t domain1, uint8_t domain2, unsigned int logp1, unsigned int logp2)
+static int frodo_quantize_dithered_local(uint16_t *out, const uint16_t *in, size_t n, const uint8_t *seed, size_t seedlen, uint8_t domain, unsigned int logp)
 {
-    uint16_t *d1 = (uint16_t *)malloc(n * sizeof(uint16_t));
-    uint16_t *d2 = (uint16_t *)malloc(n * sizeof(uint16_t));
+    uint16_t *d = (uint16_t *)malloc(n * sizeof(uint16_t));
 
-    if (d1 == NULL || d2 == NULL) {
-        free(d1);
-        free(d2);
+    if (d == NULL) {
         return 1;
     }
-    if (frodo_expand_dither_local(d1, n, seed, seedlen, domain1, logp1) != 0 ||
-        frodo_expand_dither_local(d2, n, seed, seedlen, domain2, logp2) != 0) {
-        clear_bytes((uint8_t *)d1, n * sizeof(uint16_t));
-        clear_bytes((uint8_t *)d2, n * sizeof(uint16_t));
-        free(d1);
-        free(d2);
+    if (frodo_expand_dither_local(d, n, seed, seedlen, domain, logp) != 0) {
+        clear_bytes((uint8_t *)d, n * sizeof(uint16_t));
+        free(d);
         return 1;
     }
     for (size_t i = 0; i < n; i++) {
-        uint16_t b1 = frodo_quantize_local(in[i], d1[i], logp1);
-        uint16_t c1 = (uint16_t)((frodo_reconstruct_local(b1, logp1) - d1[i]) & frodo_q_mask_local());
-        split[i] = frodo_quantize_local(c1, d2[i], logp2);
+        out[i] = frodo_quantize_local(in[i], d[i], logp);
     }
-    clear_bytes((uint8_t *)d1, n * sizeof(uint16_t));
-    clear_bytes((uint8_t *)d2, n * sizeof(uint16_t));
-    free(d1);
-    free(d2);
+    clear_bytes((uint8_t *)d, n * sizeof(uint16_t));
+    free(d);
     return 0;
 }
 
-static int frodo_reconstruct_second_layer_local(uint16_t *normal, const uint16_t *split, size_t n, const uint8_t *seed, size_t seedlen, uint8_t domain2, unsigned int logp2)
+static int frodo_reconstruct_dithered_local(uint16_t *normal, const uint16_t *split, size_t n, const uint8_t *seed, size_t seedlen, uint8_t domain, unsigned int logp)
 {
-    uint16_t *d2 = (uint16_t *)malloc(n * sizeof(uint16_t));
+    uint16_t *d = (uint16_t *)malloc(n * sizeof(uint16_t));
 
-    if (d2 == NULL) {
+    if (d == NULL) {
         return 1;
     }
-    if (frodo_expand_dither_local(d2, n, seed, seedlen, domain2, logp2) != 0) {
-        clear_bytes((uint8_t *)d2, n * sizeof(uint16_t));
-        free(d2);
+    if (frodo_expand_dither_local(d, n, seed, seedlen, domain, logp) != 0) {
+        clear_bytes((uint8_t *)d, n * sizeof(uint16_t));
+        free(d);
         return 1;
     }
     for (size_t i = 0; i < n; i++) {
-        normal[i] = (uint16_t)((frodo_reconstruct_local(split[i], logp2) - d2[i]) & frodo_q_mask_local());
+        normal[i] = (uint16_t)((frodo_reconstruct_local(split[i], logp) - d[i]) & frodo_q_mask_local());
     }
-    clear_bytes((uint8_t *)d2, n * sizeof(uint16_t));
-    free(d2);
+    clear_bytes((uint8_t *)d, n * sizeof(uint16_t));
+    free(d);
     return 0;
 }
 
 int crypto_kem_keypair(unsigned char* pk, unsigned char* sk)
-{ // FrodoKEM's key generation with public double-dither quantization
+{ // FrodoKEM's key generation with public dithered quantization
     uint8_t *pk_seedA = &pk[0];
     uint8_t *pk_b = &pk[BYTES_SEED_A];
     uint8_t *sk_s = &sk[0];
@@ -153,7 +140,7 @@ int crypto_kem_keypair(unsigned char* pk, unsigned char* sk)
     }
     frodo_sample_n(S, PARAMS_N*PARAMS_NBAR);
     frodo_mul_add_as_plus_e(B_raw, S, E_zero, pk_seedA);
-    if (frodo_double_quantize_local(B_split, B_raw, PARAMS_N*PARAMS_NBAR, pk_seedA, BYTES_SEED_A, DITHER_DOMAIN_PK_1, DITHER_DOMAIN_PK_2, PARAMS_PK_LOGP1, PARAMS_PK_LOGP2) != 0) {
+    if (frodo_quantize_dithered_local(B_split, B_raw, PARAMS_N*PARAMS_NBAR, pk_seedA, BYTES_SEED_A, DITHER_DOMAIN_PK, PARAMS_PK_LOGP) != 0) {
         clear_bytes((uint8_t *)B_raw, PARAMS_N*PARAMS_NBAR*sizeof(uint16_t));
         clear_bytes((uint8_t *)B_split, PARAMS_N*PARAMS_NBAR*sizeof(uint16_t));
         clear_bytes((uint8_t *)S, PARAMS_N*PARAMS_NBAR*sizeof(uint16_t));
@@ -162,7 +149,7 @@ int crypto_kem_keypair(unsigned char* pk, unsigned char* sk)
         return 1;
     }
 
-    frodo_pack(pk_b, PK_PACKED_BYTES, B_split, PARAMS_N*PARAMS_NBAR, PARAMS_PK_LOGP2);
+    frodo_pack(pk_b, PK_PACKED_BYTES, B_split, PARAMS_N*PARAMS_NBAR, PARAMS_PK_LOGP);
 
     memcpy(sk_s, randomness_s, CRYPTO_BYTES);
     memcpy(sk_pk, pk, CRYPTO_PUBLICKEYBYTES);
@@ -186,7 +173,7 @@ int crypto_kem_keypair(unsigned char* pk, unsigned char* sk)
 
 
 int crypto_kem_enc(unsigned char *ct, unsigned char *ss, const unsigned char *pk)
-{ // FrodoKEM's key encapsulation with public double-dither quantization
+{ // FrodoKEM's key encapsulation with public dithered quantization
     const uint8_t *pk_seedA = &pk[0];
     const uint8_t *pk_b = &pk[BYTES_SEED_A];
     uint8_t *ct_c1 = &ct[0];
@@ -233,23 +220,23 @@ int crypto_kem_enc(unsigned char *ct, unsigned char *ss, const unsigned char *pk
     for (size_t i = 0; i < PARAMS_N * PARAMS_NBAR; i++) {
         Bp_raw[i] &= frodo_q_mask_local();
     }
-    if (frodo_double_quantize_local(Bp_split, Bp_raw, PARAMS_N*PARAMS_NBAR, salt, BYTES_SALT, DITHER_DOMAIN_U_1, DITHER_DOMAIN_U_2, PARAMS_U_LOGP1, PARAMS_U_LOGP2) != 0) {
+    if (frodo_quantize_dithered_local(Bp_split, Bp_raw, PARAMS_N*PARAMS_NBAR, salt, BYTES_SALT, DITHER_DOMAIN_U, PARAMS_U_LOGP) != 0) {
         return 1;
     }
-    frodo_pack(ct_c1, CT_C1_PACKED_BYTES, Bp_split, PARAMS_N*PARAMS_NBAR, PARAMS_U_LOGP2);
+    frodo_pack(ct_c1, CT_C1_PACKED_BYTES, Bp_split, PARAMS_N*PARAMS_NBAR, PARAMS_U_LOGP);
 
-    frodo_unpack(B_split, PARAMS_N*PARAMS_NBAR, pk_b, PK_PACKED_BYTES, PARAMS_PK_LOGP2);
-    if (frodo_reconstruct_second_layer_local(B_norm, B_split, PARAMS_N*PARAMS_NBAR, pk_seedA, BYTES_SEED_A, DITHER_DOMAIN_PK_2, PARAMS_PK_LOGP2) != 0) {
+    frodo_unpack(B_split, PARAMS_N*PARAMS_NBAR, pk_b, PK_PACKED_BYTES, PARAMS_PK_LOGP);
+    if (frodo_reconstruct_dithered_local(B_norm, B_split, PARAMS_N*PARAMS_NBAR, pk_seedA, BYTES_SEED_A, DITHER_DOMAIN_PK, PARAMS_PK_LOGP) != 0) {
         return 1;
     }
     frodo_mul_add_sb_plus_e(V_raw, B_norm, Sp, E_zero_nbar);
 
     frodo_key_encode(C_enc, (uint16_t*)mu);
     frodo_add(C_enc, V_raw, C_enc);
-    if (frodo_double_quantize_local(C_split, C_enc, PARAMS_NBAR*PARAMS_NBAR, salt, BYTES_SALT, DITHER_DOMAIN_V_1, DITHER_DOMAIN_V_2, PARAMS_V_LOGP1, PARAMS_V_LOGP2) != 0) {
+    if (frodo_quantize_dithered_local(C_split, C_enc, PARAMS_NBAR*PARAMS_NBAR, salt, BYTES_SALT, DITHER_DOMAIN_V, PARAMS_V_LOGP) != 0) {
         return 1;
     }
-    frodo_pack(ct_c2, CT_C2_PACKED_BYTES, C_split, PARAMS_NBAR*PARAMS_NBAR, PARAMS_V_LOGP2);
+    frodo_pack(ct_c2, CT_C2_PACKED_BYTES, C_split, PARAMS_NBAR*PARAMS_NBAR, PARAMS_V_LOGP);
 
     memcpy(&ct[CRYPTO_CIPHERTEXTBYTES - BYTES_SALT], salt, BYTES_SALT);
     memcpy(Fin_ct, ct, CRYPTO_CIPHERTEXTBYTES);
@@ -276,7 +263,7 @@ int crypto_kem_enc(unsigned char *ct, unsigned char *ss, const unsigned char *pk
 
 
 int crypto_kem_dec(unsigned char *ss, const unsigned char *ct, const unsigned char *sk)
-{ // FrodoKEM's key decapsulation with public double-dither quantization
+{ // FrodoKEM's key decapsulation with public dithered quantization
     uint16_t B_split[PARAMS_N*PARAMS_NBAR] = {0};
     uint16_t B_norm[PARAMS_N*PARAMS_NBAR] = {0};
     uint16_t Bp_split[PARAMS_N*PARAMS_NBAR] = {0};
@@ -322,10 +309,10 @@ int crypto_kem_dec(unsigned char *ss, const unsigned char *ct, const unsigned ch
         S[i] = LE_TO_UINT16(sk_S[i]);
     }
 
-    frodo_unpack(Bp_split, PARAMS_N*PARAMS_NBAR, ct_c1, CT_C1_PACKED_BYTES, PARAMS_U_LOGP2);
-    frodo_unpack(C_split, PARAMS_NBAR*PARAMS_NBAR, ct_c2, CT_C2_PACKED_BYTES, PARAMS_V_LOGP2);
-    if (frodo_reconstruct_second_layer_local(Bp_norm, Bp_split, PARAMS_N*PARAMS_NBAR, salt, BYTES_SALT, DITHER_DOMAIN_U_2, PARAMS_U_LOGP2) != 0 ||
-        frodo_reconstruct_second_layer_local(C_norm, C_split, PARAMS_NBAR*PARAMS_NBAR, salt, BYTES_SALT, DITHER_DOMAIN_V_2, PARAMS_V_LOGP2) != 0) {
+    frodo_unpack(Bp_split, PARAMS_N*PARAMS_NBAR, ct_c1, CT_C1_PACKED_BYTES, PARAMS_U_LOGP);
+    frodo_unpack(C_split, PARAMS_NBAR*PARAMS_NBAR, ct_c2, CT_C2_PACKED_BYTES, PARAMS_V_LOGP);
+    if (frodo_reconstruct_dithered_local(Bp_norm, Bp_split, PARAMS_N*PARAMS_NBAR, salt, BYTES_SALT, DITHER_DOMAIN_U, PARAMS_U_LOGP) != 0 ||
+        frodo_reconstruct_dithered_local(C_norm, C_split, PARAMS_NBAR*PARAMS_NBAR, salt, BYTES_SALT, DITHER_DOMAIN_V, PARAMS_V_LOGP) != 0) {
         return 1;
     }
     frodo_mul_bs(W, Bp_norm, S);
@@ -347,18 +334,18 @@ int crypto_kem_dec(unsigned char *ss, const unsigned char *ct, const unsigned ch
     for (size_t i = 0; i < PARAMS_N * PARAMS_NBAR; i++) {
         BBp_raw[i] &= frodo_q_mask_local();
     }
-    if (frodo_double_quantize_local(BBp_split, BBp_raw, PARAMS_N*PARAMS_NBAR, salt, BYTES_SALT, DITHER_DOMAIN_U_1, DITHER_DOMAIN_U_2, PARAMS_U_LOGP1, PARAMS_U_LOGP2) != 0) {
+    if (frodo_quantize_dithered_local(BBp_split, BBp_raw, PARAMS_N*PARAMS_NBAR, salt, BYTES_SALT, DITHER_DOMAIN_U, PARAMS_U_LOGP) != 0) {
         return 1;
     }
 
-    frodo_unpack(B_split, PARAMS_N*PARAMS_NBAR, pk_b, PK_PACKED_BYTES, PARAMS_PK_LOGP2);
-    if (frodo_reconstruct_second_layer_local(B_norm, B_split, PARAMS_N*PARAMS_NBAR, pk_seedA, BYTES_SEED_A, DITHER_DOMAIN_PK_2, PARAMS_PK_LOGP2) != 0) {
+    frodo_unpack(B_split, PARAMS_N*PARAMS_NBAR, pk_b, PK_PACKED_BYTES, PARAMS_PK_LOGP);
+    if (frodo_reconstruct_dithered_local(B_norm, B_split, PARAMS_N*PARAMS_NBAR, pk_seedA, BYTES_SEED_A, DITHER_DOMAIN_PK, PARAMS_PK_LOGP) != 0) {
         return 1;
     }
     frodo_mul_add_sb_plus_e(CC, B_norm, Sp, E_zero_nbar);
     frodo_key_encode(W, (uint16_t*)muprime);
     frodo_add(CC, CC, W);
-    if (frodo_double_quantize_local(CC_split, CC, PARAMS_NBAR*PARAMS_NBAR, salt, BYTES_SALT, DITHER_DOMAIN_V_1, DITHER_DOMAIN_V_2, PARAMS_V_LOGP1, PARAMS_V_LOGP2) != 0) {
+    if (frodo_quantize_dithered_local(CC_split, CC, PARAMS_NBAR*PARAMS_NBAR, salt, BYTES_SALT, DITHER_DOMAIN_V, PARAMS_V_LOGP) != 0) {
         return 1;
     }
 

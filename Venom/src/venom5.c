@@ -22,12 +22,9 @@
 #define BYTES_SALT 32
 #define BYTES_SEED_SE (2*CRYPTO_BYTES)
 #define BYTES_PKHASH CRYPTO_BYTES
-#define PARAMS_PK_LOGP1 12
-#define PARAMS_PK_LOGP2 10
-#define PARAMS_U_LOGP1  12
-#define PARAMS_U_LOGP2  10
-#define PARAMS_V_LOGP1  12
-#define PARAMS_V_LOGP2  4
+#define PARAMS_PK_LOGP 10
+#define PARAMS_U_LOGP  10
+#define PARAMS_V_LOGP  4
 
 #if (PARAMS_NBAR % 8 != 0)
 #error You have modified the cryptographic parameters. FrodoKEM assumes PARAMS_NBAR is a multiple of 8.
@@ -49,5 +46,10 @@ uint16_t CDF_TABLE_LEN = 7;
 #if defined(USE_REFERENCE)
 #include "venom_macrify_reference.c"
 #else
+// Keep the original optimized backend path, but disable the AVX2 specialization
+// for this parameter set to avoid the L5 runtime crash under aggressive optimization.
+#if defined(USE_AVX2)
+#undef USE_AVX2
+#endif
 #include "venom_macrify.c"
 #endif
