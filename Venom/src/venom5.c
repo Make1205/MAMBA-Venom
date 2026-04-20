@@ -22,12 +22,9 @@
 #define BYTES_SALT 32
 #define BYTES_SEED_SE (2*CRYPTO_BYTES)
 #define BYTES_PKHASH CRYPTO_BYTES
-#define PARAMS_PK_LOGP1 12
-#define PARAMS_PK_LOGP2 10
-#define PARAMS_U_LOGP1  12
-#define PARAMS_U_LOGP2  10
-#define PARAMS_V_LOGP1  12
-#define PARAMS_V_LOGP2  4
+#define PARAMS_PK_LOGP 10
+#define PARAMS_U_LOGP  10
+#define PARAMS_V_LOGP  4
 
 #if (PARAMS_NBAR % 8 != 0)
 #error You have modified the cryptographic parameters. FrodoKEM assumes PARAMS_NBAR is a multiple of 8.
