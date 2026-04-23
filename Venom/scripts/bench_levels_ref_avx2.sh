@@ -5,14 +5,19 @@ SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 VENOM_DIR=$(cd -- "${SCRIPT_DIR}/.." && pwd)
 
 OUT_CSV=${1:-"${VENOM_DIR}/bench_results_$(date -u +%Y%m%dT%H%M%SZ).csv"}
-MODES=(REFERENCE FAST)
+MODES=(REFERENCE AVX2)
 LEVELS=(640 976 1344)
+FORCE_L35_AVX2=${FORCE_L35_AVX2:-0}
 
-printf 'mode,level,operation,iterations,total_time_s,time_mean_us,time_stdev_us,cycles_mean,cycles_stdev\n' > "${OUT_CSV}"
+printf 'mode,level,operation,iterations,total_time_s,time_mean_us,time_stdev_us,cycles_mean,cycles_stdev,status\n' > "${OUT_CSV}"
 
 echo "[info] Output CSV: ${OUT_CSV}"
-echo "[info] Running benchmarks for OPT_LEVEL=REFERENCE and OPT_LEVEL=FAST (AVX2-capable build)."
-echo "[info] Note: in current code, Level-3/5 may disable USE_AVX2 specialization inside source for stability."
+echo "[info] Running benchmarks for OPT_LEVEL=REFERENCE and AVX2."
+if [[ "${FORCE_L35_AVX2}" == "1" ]]; then
+    echo "[info] FORCE_L35_AVX2=1: forcing AVX2 path for Level-3/5 (experimental)."
+else
+    echo "[info] FORCE_L35_AVX2=0: using default stable code path for Level-3/5."
+fi
 
 parse_and_append() {
     local mode="$1"
@@ -35,7 +40,7 @@ parse_and_append() {
                 cyc_stdev = "";
             }
 
-            printf "%s,%s,%s,%s,%s,%s,%s,%s,%s\n", mode, level, op, iterations, total_s, mean_us, stdev_us, cyc_mean, cyc_stdev;
+            printf "%s,%s,%s,%s,%s,%s,%s,%s,%s,ok\n", mode, level, op, iterations, total_s, mean_us, stdev_us, cyc_mean, cyc_stdev;
         }
 
         $1 == "Key" && $2 == "generation"  { emit("Key generation", 3) }
@@ -47,7 +52,15 @@ parse_and_append() {
 for mode in "${MODES[@]}"; do
     echo "[info] ===== Building mode: ${mode} ====="
     make -C "${VENOM_DIR}" clean >/dev/null
-    make -C "${VENOM_DIR}" OPT_LEVEL="${mode}" tests >/dev/null
+    if [[ "${mode}" == "REFERENCE" ]]; then
+        make -C "${VENOM_DIR}" OPT_LEVEL=REFERENCE tests >/dev/null
+    else
+        if [[ "${FORCE_L35_AVX2}" == "1" ]]; then
+            make -C "${VENOM_DIR}" OPT_LEVEL=FAST EXTRA_CFLAGS="-O3 -DFORCE_USE_AVX2_FOR_L35" tests >/dev/null
+        else
+            make -C "${VENOM_DIR}" OPT_LEVEL=FAST tests >/dev/null
+        fi
+    fi
 
     for level in "${LEVELS[@]}"; do
         case "${level}" in
@@ -59,8 +72,18 @@ for mode in "${MODES[@]}"; do
 
         echo "[info] Running mode=${mode}, level=${level}"
         tmp_log=$(mktemp)
-        "${VENOM_DIR}/${bin}" > "${tmp_log}"
-        parse_and_append "${mode}" "${level}" "${tmp_log}"
+        set +e
+        "${VENOM_DIR}/${bin}" > "${tmp_log}" 2>&1
+        rc=$?
+        set -e
+
+        if [[ ${rc} -eq 0 ]]; then
+            parse_and_append "${mode}" "${level}" "${tmp_log}"
+        else
+            echo "[warn] mode=${mode}, level=${level} failed (exit=${rc})."
+            printf "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n" \
+                "${mode}" "${level}" "run_failed" "" "" "" "" "" "" "fail_exit_${rc}" >> "${OUT_CSV}"
+        fi
         rm -f "${tmp_log}"
     done
 done

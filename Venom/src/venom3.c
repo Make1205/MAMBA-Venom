@@ -46,10 +46,13 @@ uint16_t CDF_TABLE_LEN = 11;
 #if defined(USE_REFERENCE)
 #include "venom_macrify_reference.c"
 #else
-// Keep the original optimized backend path, but disable the AVX2 specialization
-// for this parameter set to avoid the L3 runtime crash under aggressive optimization.
+// By default, keep AVX2 disabled for this parameter set due to historical
+// runtime stability issues under aggressive optimization.
+// Define FORCE_USE_AVX2_FOR_L35 to benchmark/enable AVX2 on Level-3/5.
+#if !defined(FORCE_USE_AVX2_FOR_L35)
 #if defined(USE_AVX2)
 #undef USE_AVX2
+#endif
 #endif
 #include "venom_macrify.c"
 #endif

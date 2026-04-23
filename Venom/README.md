@@ -35,6 +35,14 @@ Optional output path:
 The script will build and benchmark all three levels for:
 
 - `OPT_LEVEL=REFERENCE`
-- `OPT_LEVEL=FAST` (AVX2-capable build settings on AMD64)
+- `AVX2` (implemented as `OPT_LEVEL=FAST`)
 
 and write a CSV with per-operation timing/cycle summary.
+
+If you want to force AVX2 for Level-3/5 as well (experimental), run:
+
+```sh
+FORCE_L35_AVX2=1 ./scripts/bench_levels_ref_avx2.sh
+```
+
+When a benchmark run crashes/fails, the script keeps running and writes a `run_failed` row with failure status in the CSV.
