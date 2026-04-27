@@ -256,13 +256,15 @@ int frodo_mul_add_sa_plus_e(uint16_t *out, const uint16_t *s, uint16_t *e, const
                 sp[p] = _mm256_set1_epi16(s[j*PARAMS_N + i + p]);
             }
             for (q = 0; q < PARAMS_N; q+=16) {
-                acc = _mm256_load_si256((__m256i*)&e[j*PARAMS_N + q]);
+                // e may not be 32-byte aligned at every call site (notably for
+                // forced AVX2 in Level-3/5), so use unaligned vector loads/stores.
+                acc = _mm256_loadu_si256((const __m256i*)&e[j*PARAMS_N + q]);
                 for (p = 0; p < 8; p++) {
-                    b = _mm256_load_si256((__m256i*)&A[p*PARAMS_N + q]);
+                    b = _mm256_loadu_si256((const __m256i*)&A[p*PARAMS_N + q]);
                     b = _mm256_mullo_epi16(b, sp[p]);
                     acc = _mm256_add_epi16(b, acc);
                 }
-                _mm256_store_si256((__m256i*)&e[j*PARAMS_N + q], acc);
+                _mm256_storeu_si256((__m256i*)&e[j*PARAMS_N + q], acc);
             }
         }
     }
