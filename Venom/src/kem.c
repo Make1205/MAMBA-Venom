@@ -51,19 +51,13 @@ static int frodo_expand_dither_local(uint16_t *d, size_t n, const uint8_t *seed,
     const unsigned int shift = PARAMS_LOGQ - logp;
     const uint16_t mask = (uint16_t)((1u << shift) - 1u);
     uint8_t in[1 + BYTES_SEED_A + BYTES_SALT] = {0};
-    uint16_t *raw = (uint16_t *)malloc(n * sizeof(uint16_t));
 
-    if (raw == NULL) {
-        return 1;
-    }
     in[0] = domain;
     memcpy(&in[1], seed, seedlen);
-    shake((uint8_t *)raw, n * sizeof(uint16_t), in, 1 + seedlen);
+    shake((uint8_t *)d, n * sizeof(uint16_t), in, 1 + seedlen);
     for (size_t i = 0; i < n; i++) {
-        d[i] = LE_TO_UINT16(raw[i]) & mask;
+        d[i] = LE_TO_UINT16(d[i]) & mask;
     }
-    clear_bytes((uint8_t *)raw, n * sizeof(uint16_t));
-    free(raw);
     return 0;
 }
 
