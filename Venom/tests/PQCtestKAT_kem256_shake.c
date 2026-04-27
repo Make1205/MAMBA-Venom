@@ -1,5 +1,5 @@
 /********************************************************************************************
-* Abstract: run tests against known answer test vectors for FrodoKEM-1344 using AES128
+* Abstract: run tests against known answer test vectors for Venom-256 using SHAKE128
 *
 * Modified from a file created by Bassham, Lawrence E (Fed) on 8/29/17.
 * Copyright © 2017 Bassham, Lawrence E (Fed). All rights reserved.
@@ -10,9 +10,9 @@
 #include <string.h>
 #include <ctype.h>
 #include "rng.h"
-#include "../src/api_venom5.h"
+#include "../src/api_venom256.h"
 
-char    AlgName[] = "FrodoKEM-1344-AES";
+char    AlgName[] = "Venom-256-SHAKE";
 
 
 #define	MAX_MARKER_LEN		50
@@ -38,7 +38,7 @@ main()
     unsigned char       pk[CRYPTO_PUBLICKEYBYTES], sk[CRYPTO_SECRETKEYBYTES], pk_rsp[CRYPTO_PUBLICKEYBYTES], sk_rsp[CRYPTO_SECRETKEYBYTES];
     int                 ret_val;
     
-    sprintf(fn_rsp, "KAT/PQCkemKAT_%d.rsp", CRYPTO_SECRETKEYBYTES);
+    sprintf(fn_rsp, "KAT/PQCkemKAT_%d_shake.rsp", CRYPTO_SECRETKEYBYTES);
     if ( (fp_rsp = fopen(fn_rsp, "r")) == NULL ) {
         printf("Couldn't open <%s> for read\n", fn_rsp);
         return KAT_FILE_OPEN_ERROR;
@@ -65,7 +65,7 @@ main()
         randombytes_init(seed, NULL, 256);
         
         // Generate the public/private keypair
-        if ( (ret_val = crypto_kem_keypair_Frodo1344(pk, sk)) != 0) {
+        if ( (ret_val = crypto_kem_keypair_Venom256(pk, sk)) != 0) {
             printf("crypto_kem_keypair returned <%d>\n", ret_val);
             return KAT_CRYPTO_FAILURE;
         }
@@ -87,7 +87,7 @@ main()
         return KAT_VERIFICATION_ERROR;
         }
 
-        if ( (ret_val = crypto_kem_enc_Frodo1344(ct, ss, pk)) != 0) {
+        if ( (ret_val = crypto_kem_enc_Venom256(ct, ss, pk)) != 0) {
             printf("crypto_kem_enc returned <%d>\n", ret_val);
             return KAT_CRYPTO_FAILURE;
         }
@@ -110,7 +110,7 @@ main()
             return KAT_VERIFICATION_ERROR;
         }
         
-        if ( (ret_val = crypto_kem_dec_Frodo1344(ss1, ct, sk)) != 0) {
+        if ( (ret_val = crypto_kem_dec_Venom256(ss1, ct, sk)) != 0) {
             printf("crypto_kem_dec returned <%d>\n", ret_val);
             return KAT_CRYPTO_FAILURE;
         }

@@ -1,7 +1,7 @@
 /********************************************************************************************
 * FrodoKEM: Learning with Errors Key Encapsulation
 *
-* Abstract: setting parameters to test FrodoKEM-1344
+* Abstract: setting parameters to test Venom-192
 *********************************************************************************************/
 
 #include <stdio.h>
@@ -9,14 +9,14 @@
 #include <string.h>
 #include <stdbool.h>
 #include "ds_benchmark.h"
-#include "../src/api_venom5.h"
+#include "../src/api_venom192.h"
 
 
-#define SYSTEM_NAME    "FrodoKEM-1344"
+#define SYSTEM_NAME    "Venom-192"
 
-#define crypto_kem_keypair            crypto_kem_keypair_Frodo1344
-#define crypto_kem_enc                crypto_kem_enc_Frodo1344
-#define crypto_kem_dec                crypto_kem_dec_Frodo1344
+#define crypto_kem_keypair            crypto_kem_keypair_Venom192
+#define crypto_kem_enc                crypto_kem_enc_Venom192
+#define crypto_kem_dec                crypto_kem_dec_Venom192
 #define shake                         shake256
 
 #include "test_kem.c"

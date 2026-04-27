@@ -1,5 +1,5 @@
 /********************************************************************************************
-* Abstract: run tests against known answer test vectors for FrodoKEM-640 using AES128
+* Abstract: run tests against known answer test vectors for Venom-128 using AES128
 *
 * Modified from a file created by Bassham, Lawrence E (Fed) on 8/29/17.
 * Copyright © 2017 Bassham, Lawrence E (Fed). All rights reserved.
@@ -10,9 +10,9 @@
 #include <string.h>
 #include <ctype.h>
 #include "rng.h"
-#include "../src/api_venom1.h"
+#include "../src/api_venom128.h"
 
-char    AlgName[] = "FrodoKEM-640-AES";
+char    AlgName[] = "Venom-128-AES";
 
 
 #define	MAX_MARKER_LEN		50
@@ -65,7 +65,7 @@ main()
         randombytes_init(seed, NULL, 256);
         
         // Generate the public/private keypair
-        if ( (ret_val = crypto_kem_keypair_Frodo640(pk, sk)) != 0) {
+        if ( (ret_val = crypto_kem_keypair_Venom128(pk, sk)) != 0) {
             printf("crypto_kem_keypair returned <%d>\n", ret_val);
             return KAT_CRYPTO_FAILURE;
         }
@@ -87,7 +87,7 @@ main()
         return KAT_VERIFICATION_ERROR;
         }
 
-        if ( (ret_val = crypto_kem_enc_Frodo640(ct, ss, pk)) != 0) {
+        if ( (ret_val = crypto_kem_enc_Venom128(ct, ss, pk)) != 0) {
             printf("crypto_kem_enc returned <%d>\n", ret_val);
             return KAT_CRYPTO_FAILURE;
         }
@@ -110,7 +110,7 @@ main()
             return KAT_VERIFICATION_ERROR;
         }
         
-        if ( (ret_val = crypto_kem_dec_Frodo640(ss1, ct, sk)) != 0) {
+        if ( (ret_val = crypto_kem_dec_Venom128(ss1, ct, sk)) != 0) {
             printf("crypto_kem_dec returned <%d>\n", ret_val);
             return KAT_CRYPTO_FAILURE;
         }

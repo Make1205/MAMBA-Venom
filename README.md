@@ -7,11 +7,13 @@ including the ephemeral variant in `eVenom`.
 
 ## Security level variants
 
-- **Venom-1** (128-bit class target)
-- **Venom-3** (192-bit class target)
-- **Venom-5** (256-bit class target)
+- **Venom-128** (implemented)
+- **Venom-192** (implemented)
+- **Venom-256** (implemented)
+- **Venom-384** (parameter extension target, not yet implemented in C core)
+- **Venom-512** (parameter extension target, not yet implemented in C core)
 
-Each level supports matrix generation with AES128 or SHAKE128 in the current codebase.
+Current C core fully supports `Venom-128/192/256` for both REF and AVX2 build workflows.
 
 ## Repository contents
 

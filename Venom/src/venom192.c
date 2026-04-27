@@ -1,15 +1,15 @@
 /********************************************************************************************
 * FrodoKEM: Learning with Errors Key Encapsulation
 *
-* Abstract: functions for FrodoKEM-976
+* Abstract: functions for Venom-192
 *           Instantiates "venom_macrify.c" with the necessary matrix arithmetic functions
 *********************************************************************************************/
 
-#include "api_venom3.h"
+#include "api_venom192.h"
 #include "venom_macrify.h"
 
 
-// Parameters for "FrodoKEM-976"
+// Parameters for "Venom-192"
 #define PARAMS_N 976
 #define PARAMS_NBAR 8
 #define PARAMS_LOGQ 15
@@ -37,9 +37,9 @@
 uint16_t CDF_TABLE[11] = {5638, 15915, 23689, 28571, 31116, 32217, 32613, 32731, 32760, 32766, 32767};
 uint16_t CDF_TABLE_LEN = 11;
 
-#define crypto_kem_keypair            crypto_kem_keypair_Frodo976
-#define crypto_kem_enc                crypto_kem_enc_Frodo976
-#define crypto_kem_dec                crypto_kem_dec_Frodo976
+#define crypto_kem_keypair            crypto_kem_keypair_Venom192
+#define crypto_kem_enc                crypto_kem_enc_Venom192
+#define crypto_kem_dec                crypto_kem_dec_Venom192
 
 #include "kem.c"
 #include "noise.c"
@@ -48,8 +48,8 @@ uint16_t CDF_TABLE_LEN = 11;
 #else
 // By default, keep AVX2 disabled for this parameter set due to historical
 // runtime stability issues under aggressive optimization.
-// Define FORCE_USE_AVX2_FOR_L35 to benchmark/enable AVX2 on Level-3/5.
-#if !defined(FORCE_USE_AVX2_FOR_L35)
+// Define FORCE_USE_AVX2_FOR_L256 to benchmark/enable AVX2 on Level-192/256.
+#if !defined(FORCE_USE_AVX2_FOR_L256)
 #if defined(USE_AVX2)
 #undef USE_AVX2
 #endif

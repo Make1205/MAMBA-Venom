@@ -6,17 +6,17 @@ VENOM_DIR=$(cd -- "${SCRIPT_DIR}/.." && pwd)
 
 OUT_CSV=${1:-"${VENOM_DIR}/bench_results_$(date -u +%Y%m%dT%H%M%SZ).csv"}
 MODES=(REFERENCE AVX2)
-LEVELS=(640 976 1344)
-FORCE_L35_AVX2=${FORCE_L35_AVX2:-0}
+LEVELS=(128 192 256)
+FORCE_L256_AVX2=${FORCE_L256_AVX2:-0}
 
 printf 'mode,level,operation,iterations,total_time_s,time_mean_us,time_stdev_us,cycles_mean,cycles_stdev,status\n' > "${OUT_CSV}"
 
 echo "[info] Output CSV: ${OUT_CSV}"
 echo "[info] Running benchmarks for OPT_LEVEL=REFERENCE and AVX2."
-if [[ "${FORCE_L35_AVX2}" == "1" ]]; then
-    echo "[info] FORCE_L35_AVX2=1: forcing AVX2 path for Level-3/5 (experimental)."
+if [[ "${FORCE_L256_AVX2}" == "1" ]]; then
+    echo "[info] FORCE_L256_AVX2=1: forcing AVX2 path for Level-192/256 (experimental)."
 else
-    echo "[info] FORCE_L35_AVX2=0: using default stable code path for Level-3/5."
+    echo "[info] FORCE_L256_AVX2=0: using default stable code path for Level-192/256."
 fi
 
 parse_and_append() {
@@ -55,8 +55,8 @@ for mode in "${MODES[@]}"; do
     if [[ "${mode}" == "REFERENCE" ]]; then
         make -C "${VENOM_DIR}" OPT_LEVEL=REFERENCE tests >/dev/null
     else
-        if [[ "${FORCE_L35_AVX2}" == "1" ]]; then
-            make -C "${VENOM_DIR}" OPT_LEVEL=FAST EXTRA_CFLAGS="-O3 -DFORCE_USE_AVX2_FOR_L35" tests >/dev/null
+        if [[ "${FORCE_L256_AVX2}" == "1" ]]; then
+            make -C "${VENOM_DIR}" OPT_LEVEL=FAST EXTRA_CFLAGS="-O3 -DFORCE_USE_AVX2_FOR_L256" tests >/dev/null
         else
             make -C "${VENOM_DIR}" OPT_LEVEL=FAST tests >/dev/null
         fi
@@ -64,9 +64,9 @@ for mode in "${MODES[@]}"; do
 
     for level in "${LEVELS[@]}"; do
         case "${level}" in
-            640) bin="venom1/test_KEM" ;;
-            976) bin="venom3/test_KEM" ;;
-            1344) bin="venom5/test_KEM" ;;
+            128) bin="venom128/test_KEM" ;;
+            192) bin="venom192/test_KEM" ;;
+            256) bin="venom256/test_KEM" ;;
             *) echo "[error] Unknown level: ${level}" >&2; exit 1 ;;
         esac
 

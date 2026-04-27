@@ -32,7 +32,7 @@ static int kem_test(const char *named_parameters, int iterations)
     #ifdef DO_VALGRIND_CHECK
         if (!RUNNING_ON_VALGRIND) {
             fprintf(stderr, "This test can only usefully be run inside valgrind.\n");
-            fprintf(stderr, "valgrind frodo640/test_KEM (or frodo976 or frodo1344)\n");
+            fprintf(stderr, "valgrind frodo640/test_KEM (or frodo976 or frodo256)\n");
             exit(1);
         }
     #endif
