@@ -13,7 +13,17 @@ including the ephemeral variant in `eVenom`.
 - **Venom-384** (parameter extension target, not yet implemented in C core)
 - **Venom-512** (parameter extension target, not yet implemented in C core)
 
-Current C core fully supports `Venom-128/192/256` for both REF and AVX2 build workflows.
+Current C core supports `Venom-128/192/256` and now includes a 32-bit reference backend for
+`Venom-384/512` (qbits 18/20). For `Venom-384/512`, AVX2 builds explicitly fall back to the
+reference backend.
+
+| Variant | n | m | ell | qbits | eta_s | eta_r | b_msg | t_pk | t_u | t_v | pk bytes | ct bytes | sk bytes | ss bytes |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| Venom-128 | 640 | 640 | 8 | 15 | 2 | 2 | 2 | 11 | 10 | 6 | 7072 | 6480 | 9056 | 16 |
+| Venom-192 | 976 | 976 | 8 | 15 | 2 | 2 | 3 | 12 | 12 | 6 | 11744 | 11792 | 14736 | 24 |
+| Venom-256 | 1344 | 1344 | 8 | 16 | 2 | 2 | 4 | 13 | 13 | 8 | 17504 | 17568 | 21600 | 32 |
+| Venom-384 | 2176 | 2176 | 8 | 18 | 3 | 3 | 6 | 16 | 15 | 13 | 34848 | 32776 | 41440 | 48 |
+| Venom-512 | 3072 | 3072 | 8 | 20 | 4 | 4 | 8 | 18 | 18 | 11 | 55328 | 55416 | 67680 | 64 |
 
 ## Repository contents
 

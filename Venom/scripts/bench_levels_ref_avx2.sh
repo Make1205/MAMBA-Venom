@@ -6,7 +6,7 @@ VENOM_DIR=$(cd -- "${SCRIPT_DIR}/.." && pwd)
 
 OUT_CSV=${1:-"${VENOM_DIR}/bench_results_$(date -u +%Y%m%dT%H%M%SZ).csv"}
 MODES=(REFERENCE AVX2)
-LEVELS=(128 192 256)
+LEVELS=(128 192 256 384 512)
 FORCE_L256_AVX2=${FORCE_L256_AVX2:-0}
 
 printf 'mode,level,operation,iterations,total_time_s,time_mean_us,time_stdev_us,cycles_mean,cycles_stdev,status\n' > "${OUT_CSV}"
@@ -67,6 +67,8 @@ for mode in "${MODES[@]}"; do
             128) bin="venom128/test_KEM" ;;
             192) bin="venom192/test_KEM" ;;
             256) bin="venom256/test_KEM" ;;
+            384) bin="venom384/test_KEM" ;;
+            512) bin="venom512/test_KEM" ;;
             *) echo "[error] Unknown level: ${level}" >&2; exit 1 ;;
         esac
 

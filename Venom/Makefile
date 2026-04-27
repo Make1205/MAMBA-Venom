@@ -96,7 +96,7 @@ endif
 
 .PHONY: all check clean prettyprint
 
-all: lib128 lib192 lib256 tests KATS
+all: lib128 lib192 lib256 lib384 lib512 tests KATS
 
 objs/%.o: src/%.c
 	@mkdir -p $(@D)
@@ -111,6 +111,14 @@ objs/venom192.o: src/venom192.c
 	$(CC) -c  $(CFLAGS) $< -o $@
 
 objs/venom256.o: src/venom256.c
+	@mkdir -p $(@D)
+	$(CC) -c  $(CFLAGS) $< -o $@
+
+objs/venom384.o: src/venom384.c
+	@mkdir -p $(@D)
+	$(CC) -c  $(CFLAGS) $< -o $@
+
+objs/venom512.o: src/venom512.c
 	@mkdir -p $(@D)
 	$(CC) -c  $(CFLAGS) $< -o $@
 
@@ -132,6 +140,14 @@ $(KEM_FRODO976_OBJS): $(KEM_FRODO976_HEADERS) $(addprefix src/, kem.c noise.c ut
 KEM_FRODO1344_OBJS := $(addprefix objs/, venom256.o util.o)
 KEM_FRODO1344_HEADERS := $(addprefix src/, api_venom256.h config.h venom_macrify.h)
 $(KEM_FRODO1344_OBJS): $(KEM_FRODO1344_HEADERS) $(addprefix src/, kem.c noise.c util.c)
+
+KEM_VENOM384_OBJS := $(addprefix objs/, venom384.o util.o)
+KEM_VENOM384_HEADERS := $(addprefix src/, api_venom384.h config.h venom_macrify.h venom_u32_core.h)
+$(KEM_VENOM384_OBJS): $(KEM_VENOM384_HEADERS) $(addprefix src/, kem_u32.c noise_u32.c venom_macrify_u32.c util.c)
+
+KEM_VENOM512_OBJS := $(addprefix objs/, venom512.o util.o)
+KEM_VENOM512_HEADERS := $(addprefix src/, api_venom512.h config.h venom_macrify.h venom_u32_core.h)
+$(KEM_VENOM512_OBJS): $(KEM_VENOM512_HEADERS) $(addprefix src/, kem_u32.c noise_u32.c venom_macrify_u32.c util.c)
 
 # AES
 ifeq "$(USE_OPENSSL)" "FALSE" 
@@ -193,10 +209,24 @@ lib256: $(KEM_FRODO1344_OBJS) $(RAND_OBJS) $(AES_OBJS) $(SHAKE_OBJS) $(SHAKEx4_O
 	$(AR) venom256/libvenom.a $^
 	$(RANLIB) venom256/libvenom.a
 
-tests: lib128 lib192 lib256 tests/ds_benchmark.h
+lib384: $(KEM_VENOM384_OBJS) $(RAND_OBJS) $(AES_OBJS) $(SHAKE_OBJS) $(SHAKEx4_OBJS)
+	rm -rf venom384
+	mkdir venom384
+	$(AR) venom384/libvenom.a $^
+	$(RANLIB) venom384/libvenom.a
+
+lib512: $(KEM_VENOM512_OBJS) $(RAND_OBJS) $(AES_OBJS) $(SHAKE_OBJS) $(SHAKEx4_OBJS)
+	rm -rf venom512
+	mkdir venom512
+	$(AR) venom512/libvenom.a $^
+	$(RANLIB) venom512/libvenom.a
+
+tests: lib128 lib192 lib256 lib384 lib512 tests/ds_benchmark.h
 	$(CC) $(CFLAGS) -L./venom128 tests/test_KEM128.c -lvenom $(LDFLAGS) -o venom128/test_KEM $(ARM_SETTING)
 	$(CC) $(CFLAGS) -L./venom192 tests/test_KEM192.c -lvenom $(LDFLAGS) -o venom192/test_KEM $(ARM_SETTING)
 	$(CC) $(CFLAGS) -L./venom256 tests/test_KEM256.c -lvenom $(LDFLAGS) -o venom256/test_KEM $(ARM_SETTING)
+	$(CC) $(CFLAGS) -L./venom384 tests/test_KEM384.c -lvenom $(LDFLAGS) -o venom384/test_KEM $(ARM_SETTING)
+	$(CC) $(CFLAGS) -L./venom512 tests/test_KEM512.c -lvenom $(LDFLAGS) -o venom512/test_KEM $(ARM_SETTING)
 
 lib128_for_KATs: $(KEM_FRODO640_OBJS) $(AES_OBJS) $(SHAKE_OBJS) $(SHAKEx4_OBJS)
 	$(AR) venom128/libvenom_for_testing.a $^
@@ -210,15 +240,27 @@ lib256_for_KATs: $(KEM_FRODO1344_OBJS) $(AES_OBJS) $(SHAKE_OBJS) $(SHAKEx4_OBJS)
 	$(AR) venom256/libvenom_for_testing.a $^
 	$(RANLIB) venom256/libvenom_for_testing.a
 
-KATS: lib128_for_KATs lib192_for_KATs lib256_for_KATs
+lib384_for_KATs: $(KEM_VENOM384_OBJS) $(AES_OBJS) $(SHAKE_OBJS) $(SHAKEx4_OBJS)
+	$(AR) venom384/libvenom_for_testing.a $^
+	$(RANLIB) venom384/libvenom_for_testing.a
+
+lib512_for_KATs: $(KEM_VENOM512_OBJS) $(AES_OBJS) $(SHAKE_OBJS) $(SHAKEx4_OBJS)
+	$(AR) venom512/libvenom_for_testing.a $^
+	$(RANLIB) venom512/libvenom_for_testing.a
+
+KATS: lib128_for_KATs lib192_for_KATs lib256_for_KATs lib384_for_KATs lib512_for_KATs
 ifeq "$(GENERATION_A)" "SHAKE128"
 	$(CC) $(CFLAGS) -L./venom128 tests/PQCtestKAT_kem128_shake.c tests/rng.c -lvenom_for_testing $(LDFLAGS) -o venom128/PQCtestKAT_kem_shake $(ARM_SETTING)
 	$(CC) $(CFLAGS) -L./venom192 tests/PQCtestKAT_kem192_shake.c tests/rng.c -lvenom_for_testing $(LDFLAGS) -o venom192/PQCtestKAT_kem_shake $(ARM_SETTING)
 	$(CC) $(CFLAGS) -L./venom256 tests/PQCtestKAT_kem256_shake.c tests/rng.c -lvenom_for_testing $(LDFLAGS) -o venom256/PQCtestKAT_kem_shake $(ARM_SETTING)
+	$(CC) $(CFLAGS) -L./venom384 tests/PQCtestKAT_kem384_shake.c tests/rng.c -lvenom_for_testing $(LDFLAGS) -o venom384/PQCtestKAT_kem_shake $(ARM_SETTING)
+	$(CC) $(CFLAGS) -L./venom512 tests/PQCtestKAT_kem512_shake.c tests/rng.c -lvenom_for_testing $(LDFLAGS) -o venom512/PQCtestKAT_kem_shake $(ARM_SETTING)
 else
 	$(CC) $(CFLAGS) -L./venom128 tests/PQCtestKAT_kem128.c tests/rng.c -lvenom_for_testing $(LDFLAGS) -o venom128/PQCtestKAT_kem $(ARM_SETTING)
 	$(CC) $(CFLAGS) -L./venom192 tests/PQCtestKAT_kem192.c tests/rng.c -lvenom_for_testing $(LDFLAGS) -o venom192/PQCtestKAT_kem $(ARM_SETTING)
 	$(CC) $(CFLAGS) -L./venom256 tests/PQCtestKAT_kem256.c tests/rng.c -lvenom_for_testing $(LDFLAGS) -o venom256/PQCtestKAT_kem $(ARM_SETTING)
+	$(CC) $(CFLAGS) -L./venom384 tests/PQCtestKAT_kem384.c tests/rng.c -lvenom_for_testing $(LDFLAGS) -o venom384/PQCtestKAT_kem $(ARM_SETTING)
+	$(CC) $(CFLAGS) -L./venom512 tests/PQCtestKAT_kem512.c tests/rng.c -lvenom_for_testing $(LDFLAGS) -o venom512/PQCtestKAT_kem $(ARM_SETTING)
 endif
 
 check: tests
@@ -245,7 +287,7 @@ else
 endif
 
 clean:
-	rm -rf objs *.req venom128 venom192 venom256
+	rm -rf objs *.req venom128 venom192 venom256 venom384 venom512
 	find . -name .DS_Store -type f -delete
 
 prettyprint:
