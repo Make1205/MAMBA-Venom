@@ -18,6 +18,16 @@
 #endif
 #define KEM_BENCH_SECONDS     1
 
+static int get_env_int(const char *name, int fallback)
+{
+    const char *v = getenv(name);
+    if (v == NULL || *v == '\0') return fallback;
+    char *end = NULL;
+    long x = strtol(v, &end, 10);
+    if (end == NULL || *end != '\0' || x <= 0) return fallback;
+    return (int)x;
+}
+
 
 static int kem_test(const char *named_parameters, int iterations) 
 {
@@ -113,8 +123,10 @@ static void kem_bench(const int seconds)
 int main(int argc, char **argv) 
 {
     int OK = true;
+    int test_iterations = get_env_int("VENOM_KEM_TEST_ITERATIONS", KEM_TEST_ITERATIONS);
+    int bench_seconds = get_env_int("VENOM_KEM_BENCH_SECONDS", KEM_BENCH_SECONDS);
 
-    OK = kem_test(SYSTEM_NAME, KEM_TEST_ITERATIONS);
+    OK = kem_test(SYSTEM_NAME, test_iterations);
     if (OK != true) {
         goto exit;
     }
@@ -122,7 +134,7 @@ int main(int argc, char **argv)
     if ((argc > 1) && (strcmp("nobench", argv[1]) == 0)) {}
     else {
         PRINT_TIMER_HEADER
-        kem_bench(KEM_BENCH_SECONDS);
+        kem_bench(bench_seconds);
     }
 
 exit:

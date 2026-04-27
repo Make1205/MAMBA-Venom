@@ -4,6 +4,8 @@
 #include "../../common/random/random.h"
 #include "venom_u32_core.h"
 #include "venom_macrify.h"
+#include <stdio.h>
+#include <time.h>
 
 #define DITHER_DOMAIN_PK 0xA1
 #define DITHER_DOMAIN_U  0xB1
@@ -20,6 +22,24 @@
 
 static inline uint32_t qmask_u32(void) { return (1u << PARAMS_LOGQ) - 1u; }
 static inline uint32_t pmask_u32(unsigned logp) { return (1u << logp) - 1u; }
+static int bench_verbose_enabled(void)
+{
+    const char *a = getenv("BENCH_VERBOSE");
+    const char *b = getenv("DEBUG_BENCH");
+    return ((a != NULL && strcmp(a, "1") == 0) || (b != NULL && strcmp(b, "1") == 0));
+}
+static void bench_log(const char *fn, const char *msg)
+{
+    if (!bench_verbose_enabled()) return;
+    fprintf(stderr, "[bench-u32] level=%d fn=%s %s\n", PARAMS_N, fn, msg);
+    fflush(stderr);
+}
+static double now_s(void)
+{
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (double)ts.tv_sec + (double)ts.tv_nsec / 1e9;
+}
 
 static int8_t ct_verify_u32(const uint32_t *a, const uint32_t *b, size_t len)
 {
@@ -96,6 +116,8 @@ static void sample_from_seed(int32_t *S, const uint8_t *seedSE, uint8_t domain, 
 
 int crypto_kem_keypair(unsigned char* pk, unsigned char* sk)
 {
+    double t0 = now_s();
+    bench_log("keygen", "start keygen");
     uint8_t *pk_seedA = &pk[0];
     uint8_t *pk_b = &pk[BYTES_SEED_A];
     uint8_t randomness[CRYPTO_BYTES + BYTES_SEED_SE + BYTES_SEED_A];
@@ -113,7 +135,9 @@ int crypto_kem_keypair(unsigned char* pk, unsigned char* sk)
     shake(pk_seedA, BYTES_SEED_A, randomness_z, BYTES_SEED_A);
     sample_from_seed(S, randomness_seedSE, 0x5F, PARAMS_ETA_S);
 
+    bench_log("keygen", "start keygen multiplication");
     if (!venom_mul_add_as_plus_e_u32(B_raw, S, E_zero, pk_seedA)) return 1;
+    if (bench_verbose_enabled()) { fprintf(stderr, "[bench-u32] level=%d fn=keygen end keygen multiplication %.3fs\n", PARAMS_N, now_s() - t0); }
     if (quantize_dithered_u32(B_split, B_raw, (size_t)PARAMS_N * PARAMS_NBAR, pk_seedA, BYTES_SEED_A, DITHER_DOMAIN_PK, PARAMS_PK_LOGP) != 0) return 1;
     venom_pack_u32(pk_b, PK_PACKED_BYTES, B_split, (size_t)PARAMS_N * PARAMS_NBAR, PARAMS_PK_LOGP);
 
@@ -127,11 +151,14 @@ int crypto_kem_keypair(unsigned char* pk, unsigned char* sk)
     clear_bytes((uint8_t *)B_split, (size_t)PARAMS_N * PARAMS_NBAR * sizeof(uint32_t));
     clear_bytes((uint8_t *)S, (size_t)PARAMS_N * PARAMS_NBAR * sizeof(int32_t));
     free(B_raw); free(B_split); free(E_zero); free(S);
+    if (bench_verbose_enabled()) { fprintf(stderr, "[bench-u32] level=%d fn=keygen end keygen total %.3fs\n", PARAMS_N, now_s() - t0); }
     return 0;
 }
 
 int crypto_kem_enc(unsigned char *ct, unsigned char *ss, const unsigned char *pk)
 {
+    double t0 = now_s();
+    bench_log("encaps", "start encaps");
     const uint8_t *pk_seedA = &pk[0];
     const uint8_t *pk_b = &pk[BYTES_SEED_A];
     uint8_t *ct_c1 = &ct[0];
@@ -166,12 +193,14 @@ int crypto_kem_enc(unsigned char *ct, unsigned char *ss, const unsigned char *pk
     shake(G2out, sizeof(G2out), G2in, sizeof(G2in));
     sample_from_seed(Sp, G2out, 0x96, PARAMS_ETA_R);
 
+    bench_log("encaps", "start encaps multiplication-1");
     if (!venom_mul_add_sa_plus_e_u32(Bp_raw, Sp, E_zero, pk_seedA)) return 1;
     if (quantize_dithered_u32(Bp_split, Bp_raw, (size_t)PARAMS_NBAR * PARAMS_N, salt, BYTES_SALT, DITHER_DOMAIN_U, PARAMS_U_LOGP) != 0) return 1;
     venom_pack_u32(ct_c1, CT_C1_PACKED_BYTES, Bp_split, (size_t)PARAMS_NBAR * PARAMS_N, PARAMS_U_LOGP);
 
     venom_unpack_u32(B_split, (size_t)PARAMS_N * PARAMS_NBAR, pk_b, PK_PACKED_BYTES, PARAMS_PK_LOGP);
     if (reconstruct_dithered_u32(B_norm, B_split, (size_t)PARAMS_N * PARAMS_NBAR, pk_seedA, BYTES_SEED_A, DITHER_DOMAIN_PK, PARAMS_PK_LOGP) != 0) return 1;
+    bench_log("encaps", "start encaps multiplication-2");
     venom_mul_add_sb_plus_e_u32(V_raw, B_norm, Sp, E_zero_nbar);
 
     venom_key_encode_u32(C_enc, mu);
@@ -183,11 +212,14 @@ int crypto_kem_enc(unsigned char *ct, unsigned char *ss, const unsigned char *pk
     memcpy(&Fin[CRYPTO_CIPHERTEXTBYTES], &G2out[BYTES_SEED_SE], CRYPTO_BYTES);
     shake(ss, CRYPTO_BYTES, Fin, sizeof(Fin));
 
+    if (bench_verbose_enabled()) { fprintf(stderr, "[bench-u32] level=%d fn=encaps end encaps total %.3fs\n", PARAMS_N, now_s() - t0); }
     return 0;
 }
 
 int crypto_kem_dec(unsigned char *ss, const unsigned char *ct, const unsigned char *sk)
 {
+    double t0 = now_s();
+    bench_log("decaps", "start decaps");
     const uint8_t *pk = &sk[SK_OFFSET_PK];
     const uint8_t *pk_seedA = &pk[0];
     const uint8_t *pk_b = &pk[BYTES_SEED_A];
@@ -226,6 +258,7 @@ int crypto_kem_dec(unsigned char *ss, const unsigned char *ct, const unsigned ch
     if (reconstruct_dithered_u32(Bp_norm, Bp_split, (size_t)PARAMS_NBAR * PARAMS_N, salt, BYTES_SALT, DITHER_DOMAIN_U, PARAMS_U_LOGP) != 0) return 1;
     if (reconstruct_dithered_u32(C_norm, C_split, (size_t)PARAMS_NBAR * PARAMS_NBAR, salt, BYTES_SALT, DITHER_DOMAIN_V, PARAMS_V_LOGP) != 0) return 1;
 
+    bench_log("decaps", "start decaps multiplication-1");
     venom_mul_bs_u32(W, Bp_norm, S);
     for (size_t i = 0; i < (size_t)PARAMS_NBAR * PARAMS_NBAR; i++) W[i] = (C_norm[i] - W[i]) & qmask_u32();
     venom_key_decode_u32(muprime, W);
@@ -236,11 +269,13 @@ int crypto_kem_dec(unsigned char *ss, const unsigned char *ct, const unsigned ch
     shake(G2out, BYTES_SEED_SE + CRYPTO_BYTES, G2in, BYTES_PKHASH + BYTES_MU + BYTES_SALT);
 
     sample_from_seed(Sp, G2out, 0x96, PARAMS_ETA_R);
+    bench_log("decaps", "start decaps reencryption-1");
     if (!venom_mul_add_sa_plus_e_u32(BBp_raw, Sp, E_zero, pk_seedA)) return 1;
     if (quantize_dithered_u32(BBp_split, BBp_raw, (size_t)PARAMS_NBAR * PARAMS_N, salt, BYTES_SALT, DITHER_DOMAIN_U, PARAMS_U_LOGP) != 0) return 1;
 
     venom_unpack_u32(B_split, (size_t)PARAMS_N * PARAMS_NBAR, pk_b, PK_PACKED_BYTES, PARAMS_PK_LOGP);
     if (reconstruct_dithered_u32(B_norm, B_split, (size_t)PARAMS_N * PARAMS_NBAR, pk_seedA, BYTES_SEED_A, DITHER_DOMAIN_PK, PARAMS_PK_LOGP) != 0) return 1;
+    bench_log("decaps", "start decaps reencryption-2");
     venom_mul_add_sb_plus_e_u32(CC, B_norm, Sp, E_zero_nbar);
     venom_key_encode_u32(W, muprime);
     for (size_t i = 0; i < (size_t)PARAMS_NBAR * PARAMS_NBAR; i++) CC[i] = (CC[i] + W[i]) & qmask_u32();
@@ -252,5 +287,6 @@ int crypto_kem_dec(unsigned char *ss, const unsigned char *ct, const unsigned ch
     memcpy(Fin, ct, CRYPTO_CIPHERTEXTBYTES);
     memcpy(&Fin[CRYPTO_CIPHERTEXTBYTES], k, CRYPTO_BYTES);
     shake(ss, CRYPTO_BYTES, Fin, CRYPTO_CIPHERTEXTBYTES + CRYPTO_BYTES);
+    if (bench_verbose_enabled()) { fprintf(stderr, "[bench-u32] level=%d fn=decaps end decaps total %.3fs\n", PARAMS_N, now_s() - t0); }
     return 0;
 }
