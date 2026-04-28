@@ -73,6 +73,9 @@ CFLAGS= $(EXTRA_CFLAGS)
 endif
 CFLAGS+= $(VALGRIND_CFLAGS)
 CFLAGS+= -std=gnu11 -Wall -Wextra -DNIX -D $(ARCHITECTURE) -D $(USE_OPT_LEVEL) -D $(USE_GENERATION_A) -D $(USING_OPENSSL)
+ifeq "$(USE_OPT_LEVEL)" "_FAST_"
+CFLAGS+= -DUSE_AVX2_U32
+endif
 ifeq "$(CC)" "gcc"
 ifneq "$(ARCHITECTURE)" "_PPC_"
 ifneq "$(ARCHITECTURE)" "_S390X_"

@@ -51,7 +51,18 @@ for mode in "${modes[@]}"; do
     bin=$(level_bin "$level"); timeout_s=$(get_timeout_secs "$level"); correct_iters=$(get_correct_iters "$level"); bench_seconds=$(get_bench_seconds "$level")
     backend="ref"; notes=""
     [[ "$level" == "384" || "$level" == "512" ]] && backend="ref_u32"
-    if [[ "$mode" == "AVX2" ]]; then backend="avx2"; if [[ "$level" == "384" || "$level" == "512" ]]; then backend="avx2_fallback_ref_u32"; notes="avx2_fallback_ref_u32"; echo "[info] Venom-${level} AVX2 path: fallback to ref-u32"; fi; fi
+    if [[ "$mode" == "AVX2" ]]; then
+      backend="avx2"
+      if [[ "$level" == "384" || "$level" == "512" ]]; then
+        if [[ "${FORCE_U32_REF:-0}" == "1" ]]; then
+          backend="avx2_fallback_ref_u32"; notes="avx2_fallback_ref_u32"
+          echo "[info] Venom-${level} AVX2 path: forced fallback to ref-u32 (FORCE_U32_REF=1)"
+        else
+          backend="avx2_u32_full"; notes="avx2_u32_full"
+          echo "[info] Venom-${level} AVX2 path: u32 AVX2 backend enabled"
+        fi
+      fi
+    fi
 
     echo "[param-check] level=$level $(level_params "$level")"
     IFS=',' read -r pkb ctb skb ssb <<< "$(query_sizes_from_api "$level")"

@@ -62,7 +62,8 @@ static unsigned long long now_cycles(void)
 static int u32_profile_enabled(void)
 {
     const char *p = getenv("PROFILE_U32");
-    return (p != NULL && strcmp(p, "1") == 0);
+    const char *q = getenv("PROFILE_U32_AVX2");
+    return ((p != NULL && strcmp(p, "1") == 0) || (q != NULL && strcmp(q, "1") == 0));
 }
 static void u32_profile_report(const char *fn, const char *stage, unsigned long long cyc, unsigned long long total)
 {

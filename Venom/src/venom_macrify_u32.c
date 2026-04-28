@@ -3,11 +3,11 @@
 #include "venom_u32_core.h"
 #include "venom_macrify.h"
 #include "../../common/sha3/fips202.h"
-#if defined(__AVX2__)
+#if defined(USE_AVX2_U32)
 #include "../../common/sha3/fips202x4.h"
 #endif
 #include <stdio.h>
-#if defined(__AVX2__)
+#if defined(USE_AVX2_U32)
 #include <immintrin.h>
 #endif
 
@@ -15,7 +15,8 @@ static inline uint32_t qmask_mul_u32(void) { return (1u << PARAMS_LOGQ) - 1u; }
 static int u32_profile_enabled_mul(void)
 {
     const char *p = getenv("PROFILE_U32");
-    return (p != NULL && strcmp(p, "1") == 0);
+    const char *q = getenv("PROFILE_U32_AVX2");
+    return ((p != NULL && strcmp(p, "1") == 0) || (q != NULL && strcmp(q, "1") == 0));
 }
 #if defined(__x86_64__) || defined(__i386__)
 #include <x86intrin.h>
@@ -106,7 +107,7 @@ static inline void expandA_row_u32_fast(uint32_t *row, uint8_t *row_bytes, uint1
 
 static inline void expandA_4rows_u32_fast(uint32_t *rows, uint8_t *row_bytes, uint16_t row_idx, size_t count, const uint8_t *seed_A)
 {
-#if defined(__AVX2__)
+#if defined(USE_AVX2_U32)
     if (count == 4) {
         uint8_t in0[2 + BYTES_SEED_A], in1[2 + BYTES_SEED_A], in2[2 + BYTES_SEED_A], in3[2 + BYTES_SEED_A];
         memcpy(&in0[2], seed_A, BYTES_SEED_A);
@@ -138,7 +139,7 @@ static inline void expandA_4rows_u32_fast(uint32_t *rows, uint8_t *row_bytes, ui
     }
 }
 
-#if defined(__AVX2__)
+#if defined(USE_AVX2_U32)
 static inline int64_t dot_u32_i32_avx2(const uint32_t *a, const int32_t *b)
 {
     __m256i acc = _mm256_setzero_si256();
@@ -169,7 +170,7 @@ static int mul_A_times_S_u32_fast(uint32_t *out, const int32_t *s, const uint32_
 {
     unsigned long long c0 = mul_now_cycles(), c_expand = 0, c_mac = 0, c1;
     size_t batch_rows = 1;
-#if defined(__AVX2__)
+#if defined(USE_AVX2_U32)
     batch_rows = (ws && ws->row_count > 0) ? ws->row_count : 4;
 #endif
     if (batch_rows > 4) batch_rows = 4;
@@ -222,7 +223,7 @@ static int mul_A_times_S_u32_fast(uint32_t *out, const int32_t *s, const uint32_
         int64_t acc5 = e[i*(size_t)PARAMS_NBAR + 5];
         int64_t acc6 = e[i*(size_t)PARAMS_NBAR + 6];
         int64_t acc7 = e[i*(size_t)PARAMS_NBAR + 7];
-#if defined(__AVX2__)
+#if defined(USE_AVX2_U32)
         acc0 += dot_u32_i32_avx2(row, s0);
         acc1 += dot_u32_i32_avx2(row, s1);
         acc2 += dot_u32_i32_avx2(row, s2);
@@ -275,7 +276,7 @@ static int mul_AT_times_R_u32_fast(uint32_t *out, const int32_t *s, const uint32
 {
     unsigned long long c0 = mul_now_cycles(), c_expand = 0, c_mac = 0, c_out = 0, c1;
     size_t batch_rows = 1;
-#if defined(__AVX2__)
+#if defined(USE_AVX2_U32)
     batch_rows = (ws && ws->row_count > 0) ? ws->row_count : 4;
 #endif
     if (batch_rows > 4) batch_rows = 4;
