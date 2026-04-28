@@ -3,8 +3,26 @@
 #include "venom_u32_core.h"
 #include "venom_macrify.h"
 #include "../../common/sha3/fips202.h"
+#include <stdio.h>
 
 static inline uint32_t qmask_mul_u32(void) { return (1u << PARAMS_LOGQ) - 1u; }
+static int u32_profile_enabled_mul(void)
+{
+    const char *p = getenv("PROFILE_U32");
+    return (p != NULL && strcmp(p, "1") == 0);
+}
+#if defined(__x86_64__) || defined(__i386__)
+#include <x86intrin.h>
+static inline unsigned long long mul_now_cycles(void) { return __rdtsc(); }
+#else
+#include <time.h>
+static inline unsigned long long mul_now_cycles(void)
+{
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (unsigned long long)ts.tv_sec * 1000000000ull + (unsigned long long)ts.tv_nsec;
+}
+#endif
 
 static void expand_a_row(uint32_t *row, uint8_t *row_bytes, uint16_t row_idx, const uint8_t *seed_A)
 {
@@ -21,12 +39,16 @@ static void expand_a_row(uint32_t *row, uint8_t *row_bytes, uint16_t row_idx, co
 
 int venom_mul_add_as_plus_e_u32(uint32_t *out, const int32_t *s, const uint32_t *e, const uint8_t *seed_A)
 {
+    unsigned long long c0 = mul_now_cycles(), c_expand = 0, c_mac = 0, c1;
     uint32_t *row = (uint32_t *)malloc((size_t)PARAMS_N * sizeof(uint32_t));
     uint8_t *row_bytes = (uint8_t *)malloc((size_t)PARAMS_N * 4);
     if (!row || !row_bytes) { free(row); free(row_bytes); return 0; }
 
     for (size_t i = 0; i < PARAMS_N; i++) {
+        c1 = mul_now_cycles();
         expand_a_row(row, row_bytes, (uint16_t)i, seed_A);
+        c_expand += mul_now_cycles() - c1;
+        c1 = mul_now_cycles();
         for (size_t k = 0; k < PARAMS_NBAR; k++) {
             int64_t sum = e[i*PARAMS_NBAR + k];
             for (size_t j = 0; j < PARAMS_N; j++) {
@@ -34,16 +56,25 @@ int venom_mul_add_as_plus_e_u32(uint32_t *out, const int32_t *s, const uint32_t 
             }
             out[i*PARAMS_NBAR + k] = (uint32_t)sum & qmask_mul_u32();
         }
+        c_mac += mul_now_cycles() - c1;
     }
     clear_bytes((uint8_t *)row, (size_t)PARAMS_N * sizeof(uint32_t));
     clear_bytes(row_bytes, (size_t)PARAMS_N * 4);
     free(row);
     free(row_bytes);
+    if (u32_profile_enabled_mul()) {
+        unsigned long long total = mul_now_cycles() - c0;
+        double p_expand = (total == 0) ? 0.0 : (100.0 * (double)c_expand / (double)total);
+        double p_mac = (total == 0) ? 0.0 : (100.0 * (double)c_mac / (double)total);
+        fprintf(stderr, "[profile-u32] level=%d fn=mul_as details expandA=%llu(%.2f%%) mac=%llu(%.2f%%)\n",
+                PARAMS_N, c_expand, p_expand, c_mac, p_mac);
+    }
     return 1;
 }
 
 int venom_mul_add_sa_plus_e_u32(uint32_t *out, const int32_t *s, const uint32_t *e, const uint8_t *seed_A)
 {
+    unsigned long long c0 = mul_now_cycles(), c_expand = 0, c_mac = 0, c_out = 0, c1;
     uint32_t *row = (uint32_t *)malloc((size_t)PARAMS_N * sizeof(uint32_t));
     uint8_t *row_bytes = (uint8_t *)malloc((size_t)PARAMS_N * 4);
     int64_t *acc = (int64_t *)malloc((size_t)PARAMS_NBAR * PARAMS_N * sizeof(int64_t));
@@ -55,25 +86,39 @@ int venom_mul_add_sa_plus_e_u32(uint32_t *out, const int32_t *s, const uint32_t 
         }
     }
     for (size_t i = 0; i < PARAMS_N; i++) {
+        c1 = mul_now_cycles();
         expand_a_row(row, row_bytes, (uint16_t)i, seed_A);
+        c_expand += mul_now_cycles() - c1;
+        c1 = mul_now_cycles();
         for (size_t k = 0; k < PARAMS_NBAR; k++) {
             int64_t si = s[k*PARAMS_N + i];
             for (size_t q = 0; q < PARAMS_N; q++) {
                 acc[k*PARAMS_N + q] += si * (int64_t)row[q];
             }
         }
+        c_mac += mul_now_cycles() - c1;
     }
+    c1 = mul_now_cycles();
     for (size_t k = 0; k < PARAMS_NBAR; k++) {
         for (size_t i = 0; i < PARAMS_N; i++) {
             out[k*PARAMS_N + i] = (uint32_t)acc[k*PARAMS_N + i] & qmask_mul_u32();
         }
     }
+    c_out += mul_now_cycles() - c1;
     clear_bytes((uint8_t *)row, (size_t)PARAMS_N * sizeof(uint32_t));
     clear_bytes(row_bytes, (size_t)PARAMS_N * 4);
     clear_bytes((uint8_t *)acc, (size_t)PARAMS_NBAR * PARAMS_N * sizeof(int64_t));
     free(row);
     free(row_bytes);
     free(acc);
+    if (u32_profile_enabled_mul()) {
+        unsigned long long total = mul_now_cycles() - c0;
+        double p_expand = (total == 0) ? 0.0 : (100.0 * (double)c_expand / (double)total);
+        double p_mac = (total == 0) ? 0.0 : (100.0 * (double)c_mac / (double)total);
+        double p_out = (total == 0) ? 0.0 : (100.0 * (double)c_out / (double)total);
+        fprintf(stderr, "[profile-u32] level=%d fn=mul_sa details expandA=%llu(%.2f%%) mac=%llu(%.2f%%) finalize=%llu(%.2f%%)\n",
+                PARAMS_N, c_expand, p_expand, c_mac, p_mac, c_out, p_out);
+    }
     return 1;
 }
 
