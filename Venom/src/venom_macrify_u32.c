@@ -40,6 +40,9 @@ static inline unsigned long long mul_now_cycles(void)
 #ifndef VENOM_U32_A_PARSE_STYLE
 #define VENOM_U32_A_PARSE_STYLE 0
 #endif
+#ifndef VENOM_U32_MUL_BS_PREPACK
+#define VENOM_U32_MUL_BS_PREPACK 0
+#endif
 #define A_ROW_BYTES ((size_t)PARAMS_N * VENOM_U32_A_WORD_BYTES)
 static venom_u32_fast_stats_t g_u32_fast_stats = {0};
 static size_t g_active_batch_rows = 1;
@@ -352,6 +355,27 @@ int venom_mul_add_sa_plus_e_u32(uint32_t *out, const int32_t *s, const uint32_t 
 
 void venom_mul_bs_u32(uint32_t *out, const uint32_t *b, const int32_t *s)
 {
+#if defined(USE_AVX2_U32) && (VENOM_U32_MUL_BS_PREPACK == 1)
+    int32_t *spack = (int32_t *)malloc((size_t)PARAMS_N * PARAMS_NBAR * sizeof(int32_t));
+    if (spack != NULL) {
+        for (size_t k = 0; k < (size_t)PARAMS_N; k++) {
+            for (size_t j = 0; j < PARAMS_NBAR; j++) {
+                spack[k*(size_t)PARAMS_NBAR + j] = s[j*(size_t)PARAMS_N + k];
+            }
+        }
+        for (size_t i = 0; i < PARAMS_NBAR; i++) {
+            __m256i acc = _mm256_setzero_si256();
+            for (size_t k = 0; k < (size_t)PARAMS_N; k++) {
+                __m256i svec = _mm256_loadu_si256((const __m256i *)(spack + k*(size_t)PARAMS_NBAR));
+                __m256i bvec = _mm256_set1_epi32((int32_t)b[i*(size_t)PARAMS_N + k]);
+                acc = _mm256_add_epi32(acc, _mm256_mullo_epi32(bvec, svec));
+            }
+            _mm256_storeu_si256((__m256i *)(out + i*(size_t)PARAMS_NBAR), acc);
+        }
+        clear_bytes((uint8_t *)spack, (size_t)PARAMS_N * PARAMS_NBAR * sizeof(int32_t));
+        free(spack);
+    } else
+#endif
     for (size_t i = 0; i < PARAMS_NBAR; i++) {
 #if defined(USE_AVX2_U32)
         __m256i acc = _mm256_setzero_si256();
