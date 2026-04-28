@@ -1,4 +1,21 @@
 Algorithm instance: Venom-256
 Functionality: KEM
 Implementation type: Optimized
-Status: Pending migration in next stage.
+Public key bytes: 17504
+Secret key bytes: 21600
+Ciphertext bytes: 17568
+Shared secret bytes: 32
+Required compiler: gcc/clang (C99 or later)
+Required instruction set: AVX2 + AES-NI + SSE2
+Build command: make clean && make
+KAT command: make KAT && ./KAT_KEM
+Source file summary:
+- KEM_AlgorithmInstance.[ch]: API_PKC KEM interface to Venom-256.
+- randombytes_api.c: API_PKC DRNG-backed randombytes() wrapper.
+- KAT_KEM.c, drng.[ch], auxfunc.[ch]: API_PKC template files.
+- Venom/src/venom256.c + dependencies from Venom/common: optimized AVX2 path.
+Notes:
+- Optimized implementation requires AVX2-capable CPU.
+- API_PKC auxiliary files are included.
+- The current Venom optimized path still uses the existing Venom SHAKE/XOF implementation internally.
+- A later migration step will route SHAKE/XOF through auxfunc wrappers.
