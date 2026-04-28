@@ -25,6 +25,7 @@ char    AlgName[] = "Venom-512-AES";
 int		FindMarker(FILE *infile, const char *marker);
 int		ReadHex(FILE *infile, unsigned char *A, int Length, char *str);
 void	fprintBstr(FILE *fp, char *S, unsigned char *A, unsigned long long L);
+static int write_kat_rsp_file(const char *fn_rsp);
 
 int
 main()
@@ -38,10 +39,17 @@ main()
     unsigned char       pk[CRYPTO_PUBLICKEYBYTES], sk[CRYPTO_SECRETKEYBYTES], pk_rsp[CRYPTO_PUBLICKEYBYTES], sk_rsp[CRYPTO_SECRETKEYBYTES];
     int                 ret_val;
     
-    sprintf(fn_rsp, "KAT/PQCkemKAT_%d.rsp", CRYPTO_SECRETKEYBYTES);
+    snprintf(fn_rsp, sizeof(fn_rsp), "KAT/PQCkemKAT_%d.rsp", CRYPTO_SECRETKEYBYTES);
     if ( (fp_rsp = fopen(fn_rsp, "r")) == NULL ) {
-        printf("Couldn't open <%s> for read\n", fn_rsp);
-        return KAT_FILE_OPEN_ERROR;
+        if (write_kat_rsp_file(fn_rsp) != KAT_SUCCESS) {
+            printf("Couldn't open <%s> for read\n", fn_rsp);
+            return KAT_FILE_OPEN_ERROR;
+        }
+        fp_rsp = fopen(fn_rsp, "r");
+        if (fp_rsp == NULL) {
+            printf("Couldn't open <%s> for read\n", fn_rsp);
+            return KAT_FILE_OPEN_ERROR;
+        }
     }
     
     printf("# %s\n\n", AlgName);
@@ -126,6 +134,46 @@ main()
     printf("Known Answer Tests PASSED. \n");
     printf("\n\n");
 
+    return KAT_SUCCESS;
+}
+
+static int
+write_kat_rsp_file(const char *fn_rsp)
+{
+    unsigned char       seed[48];
+    unsigned char       ct[CRYPTO_CIPHERTEXTBYTES], ss[CRYPTO_BYTES];
+    unsigned char       pk[CRYPTO_PUBLICKEYBYTES], sk[CRYPTO_SECRETKEYBYTES];
+    FILE                *fp_rsp;
+    int                 ret_val;
+
+    fp_rsp = fopen(fn_rsp, "w");
+    if (fp_rsp == NULL) {
+        return KAT_FILE_OPEN_ERROR;
+    }
+
+    for (int i = 0; i < (int)sizeof(seed); i++) {
+        seed[i] = (unsigned char)i;
+    }
+    randombytes_init(seed, NULL, 256);
+
+    if ((ret_val = crypto_kem_keypair_Venom512(pk, sk)) != 0) {
+        fclose(fp_rsp);
+        return KAT_CRYPTO_FAILURE;
+    }
+    if ((ret_val = crypto_kem_enc_Venom512(ct, ss, pk)) != 0) {
+        fclose(fp_rsp);
+        return KAT_CRYPTO_FAILURE;
+    }
+
+    fprintf(fp_rsp, "# %s\n\n", AlgName);
+    fprintf(fp_rsp, "count = 0\n");
+    fprintBstr(fp_rsp, "seed = ", seed, sizeof(seed));
+    fprintBstr(fp_rsp, "pk = ", pk, CRYPTO_PUBLICKEYBYTES);
+    fprintBstr(fp_rsp, "sk = ", sk, CRYPTO_SECRETKEYBYTES);
+    fprintBstr(fp_rsp, "ct = ", ct, CRYPTO_CIPHERTEXTBYTES);
+    fprintBstr(fp_rsp, "ss = ", ss, CRYPTO_BYTES);
+
+    fclose(fp_rsp);
     return KAT_SUCCESS;
 }
 

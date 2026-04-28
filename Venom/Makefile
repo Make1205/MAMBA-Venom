@@ -244,22 +244,27 @@ tests: lib128 lib192 lib256 lib384 lib512 tests/ds_benchmark.h
 	$(CC) $(CFLAGS) -L./venom512 tests/test_KEM512.c -lvenom $(LDFLAGS) -o venom512/test_KEM $(ARM_SETTING)
 
 lib128_for_KATs: $(KEM_FRODO640_OBJS) $(AES_OBJS) $(SHAKE_OBJS) $(SHAKEx4_OBJS)
+	@mkdir -p venom128
 	$(AR) venom128/libvenom_for_testing.a $^
 	$(RANLIB) venom128/libvenom_for_testing.a
 
 lib192_for_KATs: $(KEM_FRODO976_OBJS) $(AES_OBJS) $(SHAKE_OBJS) $(SHAKEx4_OBJS)
+	@mkdir -p venom192
 	$(AR) venom192/libvenom_for_testing.a $^
 	$(RANLIB) venom192/libvenom_for_testing.a
 
 lib256_for_KATs: $(KEM_FRODO1344_OBJS) $(AES_OBJS) $(SHAKE_OBJS) $(SHAKEx4_OBJS)
+	@mkdir -p venom256
 	$(AR) venom256/libvenom_for_testing.a $^
 	$(RANLIB) venom256/libvenom_for_testing.a
 
 lib384_for_KATs: $(KEM_VENOM384_OBJS) $(AES_OBJS) $(SHAKE_OBJS) $(SHAKEx4_OBJS)
+	@mkdir -p venom384
 	$(AR) venom384/libvenom_for_testing.a $^
 	$(RANLIB) venom384/libvenom_for_testing.a
 
 lib512_for_KATs: $(KEM_VENOM512_OBJS) $(AES_OBJS) $(SHAKE_OBJS) $(SHAKEx4_OBJS)
+	@mkdir -p venom512
 	$(AR) venom512/libvenom_for_testing.a $^
 	$(RANLIB) venom512/libvenom_for_testing.a
 
