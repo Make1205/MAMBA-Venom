@@ -154,7 +154,10 @@ int crypto_kem_keypair(unsigned char* pk, unsigned char* sk)
     uint32_t *B_split = calloc((size_t)PARAMS_N * PARAMS_NBAR, sizeof(uint32_t));
     uint32_t *E_zero = calloc((size_t)PARAMS_N * PARAMS_NBAR, sizeof(uint32_t));
     int32_t *S = calloc((size_t)PARAMS_N * PARAMS_NBAR, sizeof(int32_t));
-    if (!B_raw || !B_split || !E_zero || !S) return 1;
+    uint32_t *Arow = calloc((size_t)PARAMS_N * 4, sizeof(uint32_t));
+    uint8_t *Arow_bytes = calloc((size_t)PARAMS_N * 16, 1);
+    venom_u32_workspace_t ws = { Arow, Arow_bytes, 4 };
+    if (!B_raw || !B_split || !E_zero || !S || !Arow || !Arow_bytes) return 1;
 
     if (randombytes(randomness, sizeof(randomness)) != 0) return 1;
     shake(pk_seedA, BYTES_SEED_A, randomness_z, BYTES_SEED_A);
@@ -164,7 +167,7 @@ int crypto_kem_keypair(unsigned char* pk, unsigned char* sk)
 
     bench_log("keygen", "start keygen multiplication");
     c1 = now_cycles();
-    if (!venom_mul_add_as_plus_e_u32(B_raw, S, E_zero, pk_seedA)) return 1;
+    if (!venom_mul_add_as_plus_e_u32(B_raw, S, E_zero, pk_seedA, &ws)) return 1;
     cyc_mul += now_cycles() - c1;
     if (bench_verbose_enabled()) { fprintf(stderr, "[bench-u32] level=%d fn=keygen end keygen multiplication %.3fs\n", PARAMS_N, now_s() - t0); }
     c1 = now_cycles();
@@ -183,7 +186,7 @@ int crypto_kem_keypair(unsigned char* pk, unsigned char* sk)
     clear_bytes((uint8_t *)B_raw, (size_t)PARAMS_N * PARAMS_NBAR * sizeof(uint32_t));
     clear_bytes((uint8_t *)B_split, (size_t)PARAMS_N * PARAMS_NBAR * sizeof(uint32_t));
     clear_bytes((uint8_t *)S, (size_t)PARAMS_N * PARAMS_NBAR * sizeof(int32_t));
-    free(B_raw); free(B_split); free(E_zero); free(S);
+    free(B_raw); free(B_split); free(E_zero); free(S); free(Arow); free(Arow_bytes);
     {
         unsigned long long total = now_cycles() - c0;
         u32_profile_report("keygen", "sample_S", cyc_sample, total);
@@ -217,13 +220,16 @@ int crypto_kem_enc(unsigned char *ct, unsigned char *ss, const unsigned char *pk
     uint32_t *E_zero = calloc((size_t)PARAMS_NBAR * PARAMS_N, sizeof(uint32_t));
     uint32_t *E_zero_nbar = calloc((size_t)PARAMS_NBAR * PARAMS_NBAR, sizeof(uint32_t));
     int32_t *Sp = calloc((size_t)PARAMS_NBAR * PARAMS_N, sizeof(int32_t));
+    uint32_t *Arow = calloc((size_t)PARAMS_N * 4, sizeof(uint32_t));
+    uint8_t *Arow_bytes = calloc((size_t)PARAMS_N * 16, 1);
+    venom_u32_workspace_t ws = { Arow, Arow_bytes, 4 };
     uint8_t *mu = calloc(BYTES_MU, 1);
     uint8_t rnd_mu_salt[BYTES_MU + BYTES_SALT];
     uint8_t G2in[BYTES_PKHASH + BYTES_MU + BYTES_SALT];
     uint8_t G2out[BYTES_SEED_SE + CRYPTO_BYTES];
     uint8_t Fin[CRYPTO_CIPHERTEXTBYTES + CRYPTO_BYTES];
 
-    if (!B_split||!B_norm||!Bp_raw||!Bp_split||!V_raw||!C_split||!C_enc||!E_zero||!E_zero_nbar||!Sp||!mu) return 1;
+    if (!B_split||!B_norm||!Bp_raw||!Bp_split||!V_raw||!C_split||!C_enc||!E_zero||!E_zero_nbar||!Sp||!Arow||!Arow_bytes||!mu) return 1;
 
     shake(&G2in[0], BYTES_PKHASH, pk, CRYPTO_PUBLICKEYBYTES);
     if (randombytes(rnd_mu_salt, BYTES_MU + BYTES_SALT) != 0) return 1;
@@ -239,7 +245,7 @@ int crypto_kem_enc(unsigned char *ct, unsigned char *ss, const unsigned char *pk
 
     bench_log("encaps", "start encaps multiplication-1");
     c1 = now_cycles();
-    if (!venom_mul_add_sa_plus_e_u32(Bp_raw, Sp, E_zero, pk_seedA)) return 1;
+    if (!venom_mul_add_sa_plus_e_u32(Bp_raw, Sp, E_zero, pk_seedA, &ws)) return 1;
     if (quantize_dithered_u32(Bp_split, Bp_raw, (size_t)PARAMS_NBAR * PARAMS_N, salt, BYTES_SALT, DITHER_DOMAIN_U, PARAMS_U_LOGP) != 0) return 1;
     venom_pack_u32(ct_c1, CT_C1_PACKED_BYTES, Bp_split, (size_t)PARAMS_NBAR * PARAMS_N, PARAMS_U_LOGP);
     cyc_mul_u += now_cycles() - c1;
@@ -272,6 +278,7 @@ int crypto_kem_enc(unsigned char *ct, unsigned char *ss, const unsigned char *pk
         u32_profile_report("encaps", "mul_v_path", cyc_mul_v, total);
         u32_profile_report("encaps", "final_hash", cyc_misc, total);
     }
+    free(Arow); free(Arow_bytes);
     if (bench_verbose_enabled()) { fprintf(stderr, "[bench-u32] level=%d fn=encaps end encaps total %.3fs\n", PARAMS_N, now_s() - t0); }
     return 0;
 }
@@ -307,11 +314,14 @@ int crypto_kem_dec(unsigned char *ss, const unsigned char *ct, const unsigned ch
     uint32_t *E_zero_nbar = calloc((size_t)PARAMS_NBAR * PARAMS_NBAR, sizeof(uint32_t));
     int32_t *S = calloc((size_t)PARAMS_NBAR * PARAMS_N, sizeof(int32_t));
     int32_t *Sp = calloc((size_t)PARAMS_NBAR * PARAMS_N, sizeof(int32_t));
+    uint32_t *Arow = calloc((size_t)PARAMS_N * 4, sizeof(uint32_t));
+    uint8_t *Arow_bytes = calloc((size_t)PARAMS_N * 16, 1);
+    venom_u32_workspace_t ws = { Arow, Arow_bytes, 4 };
     uint8_t *muprime = calloc(BYTES_MU, 1);
     uint8_t *G2in = calloc(BYTES_PKHASH + BYTES_MU + BYTES_SALT, 1);
     uint8_t *G2out = calloc(BYTES_SEED_SE + CRYPTO_BYTES, 1);
     uint8_t *Fin = calloc(CRYPTO_CIPHERTEXTBYTES + CRYPTO_BYTES, 1);
-    if (!B_split||!B_norm||!Bp_split||!Bp_norm||!BBp_raw||!BBp_split||!W||!C_split||!C_norm||!CC||!CC_split||!E_zero||!E_zero_nbar||!S||!Sp||!muprime||!G2in||!G2out||!Fin) return 1;
+    if (!B_split||!B_norm||!Bp_split||!Bp_norm||!BBp_raw||!BBp_split||!W||!C_split||!C_norm||!CC||!CC_split||!E_zero||!E_zero_nbar||!S||!Sp||!Arow||!Arow_bytes||!muprime||!G2in||!G2out||!Fin) return 1;
 
     sample_from_seed(S, seedS, 0x5F, PARAMS_ETA_S);
 
@@ -339,7 +349,7 @@ int crypto_kem_dec(unsigned char *ss, const unsigned char *ct, const unsigned ch
     cyc_other += now_cycles() - c1;
     bench_log("decaps", "start decaps reencryption-1");
     c1 = now_cycles();
-    if (!venom_mul_add_sa_plus_e_u32(BBp_raw, Sp, E_zero, pk_seedA)) return 1;
+    if (!venom_mul_add_sa_plus_e_u32(BBp_raw, Sp, E_zero, pk_seedA, &ws)) return 1;
     if (quantize_dithered_u32(BBp_split, BBp_raw, (size_t)PARAMS_NBAR * PARAMS_N, salt, BYTES_SALT, DITHER_DOMAIN_U, PARAMS_U_LOGP) != 0) return 1;
     cyc_reenc_u += now_cycles() - c1;
 
@@ -369,6 +379,7 @@ int crypto_kem_dec(unsigned char *ss, const unsigned char *ct, const unsigned ch
         u32_profile_report("decaps", "reenc_v_path", cyc_reenc_v, total);
         u32_profile_report("decaps", "other_hash_verify", cyc_other, total);
     }
+    free(Arow); free(Arow_bytes);
     if (bench_verbose_enabled()) { fprintf(stderr, "[bench-u32] level=%d fn=decaps end decaps total %.3fs\n", PARAMS_N, now_s() - t0); }
     return 0;
 }

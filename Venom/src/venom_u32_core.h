@@ -4,8 +4,14 @@
 #include <stddef.h>
 #include <stdint.h>
 
-int venom_mul_add_as_plus_e_u32(uint32_t *out, const int32_t *s, const uint32_t *e, const uint8_t *seed_A);
-int venom_mul_add_sa_plus_e_u32(uint32_t *out, const int32_t *s, const uint32_t *e, const uint8_t *seed_A);
+typedef struct {
+    uint32_t *arow;
+    uint8_t *arow_bytes;
+    size_t row_count;
+} venom_u32_workspace_t;
+
+int venom_mul_add_as_plus_e_u32(uint32_t *out, const int32_t *s, const uint32_t *e, const uint8_t *seed_A, venom_u32_workspace_t *ws);
+int venom_mul_add_sa_plus_e_u32(uint32_t *out, const int32_t *s, const uint32_t *e, const uint8_t *seed_A, venom_u32_workspace_t *ws);
 void venom_mul_bs_u32(uint32_t *out, const uint32_t *b, const int32_t *s);
 void venom_mul_add_sb_plus_e_u32(uint32_t *out, const uint32_t *b, const int32_t *s, const uint32_t *e);
 

@@ -3,6 +3,9 @@
 #include "venom_u32_core.h"
 #include "venom_macrify.h"
 #include "../../common/sha3/fips202.h"
+#if defined(__AVX2__) && defined(VENOM_U32_USE_SHAKE4X)
+#include "../../common/sha3/fips202x4.h"
+#endif
 #include <stdio.h>
 
 static inline uint32_t qmask_mul_u32(void) { return (1u << PARAMS_LOGQ) - 1u; }
@@ -24,6 +27,18 @@ static inline unsigned long long mul_now_cycles(void)
 }
 #endif
 
+#ifndef VENOM_U32_CACHE_A
+#define VENOM_U32_CACHE_A 0
+#endif
+
+static void expand_a_row_from_bytes(uint32_t *row, const uint8_t *row_bytes)
+{
+    for (size_t j = 0; j < PARAMS_N; j++) {
+        uint32_t v = (uint32_t)row_bytes[4*j] | ((uint32_t)row_bytes[4*j+1] << 8) | ((uint32_t)row_bytes[4*j+2] << 16) | ((uint32_t)row_bytes[4*j+3] << 24);
+        row[j] = v & qmask_mul_u32();
+    }
+}
+
 static void expand_a_row(uint32_t *row, uint8_t *row_bytes, uint16_t row_idx, const uint8_t *seed_A)
 {
     uint8_t in[2 + BYTES_SEED_A];
@@ -31,37 +46,94 @@ static void expand_a_row(uint32_t *row, uint8_t *row_bytes, uint16_t row_idx, co
     in[0] = (uint8_t)(row_idx & 0xFF);
     in[1] = (uint8_t)((row_idx >> 8) & 0xFF);
     shake128(row_bytes, (unsigned long long)PARAMS_N * 4, in, sizeof(in));
-    for (size_t j = 0; j < PARAMS_N; j++) {
-        uint32_t v = (uint32_t)row_bytes[4*j] | ((uint32_t)row_bytes[4*j+1] << 8) | ((uint32_t)row_bytes[4*j+2] << 16) | ((uint32_t)row_bytes[4*j+3] << 24);
-        row[j] = v & qmask_mul_u32();
+    expand_a_row_from_bytes(row, row_bytes);
+}
+
+static void expand_a_rows(uint32_t *rows, uint8_t *row_bytes, uint16_t row_idx, size_t count, const uint8_t *seed_A)
+{
+#if defined(__AVX2__) && defined(VENOM_U32_USE_SHAKE4X)
+    if (count == 4) {
+        uint8_t in0[2 + BYTES_SEED_A], in1[2 + BYTES_SEED_A], in2[2 + BYTES_SEED_A], in3[2 + BYTES_SEED_A];
+        memcpy(&in0[2], seed_A, BYTES_SEED_A);
+        memcpy(&in1[2], seed_A, BYTES_SEED_A);
+        memcpy(&in2[2], seed_A, BYTES_SEED_A);
+        memcpy(&in3[2], seed_A, BYTES_SEED_A);
+        in0[0] = (uint8_t)(row_idx & 0xFF);         in0[1] = (uint8_t)((row_idx >> 8) & 0xFF);
+        in1[0] = (uint8_t)((row_idx + 1) & 0xFF);   in1[1] = (uint8_t)(((row_idx + 1) >> 8) & 0xFF);
+        in2[0] = (uint8_t)((row_idx + 2) & 0xFF);   in2[1] = (uint8_t)(((row_idx + 2) >> 8) & 0xFF);
+        in3[0] = (uint8_t)((row_idx + 3) & 0xFF);   in3[1] = (uint8_t)(((row_idx + 3) >> 8) & 0xFF);
+        shake128_4x(row_bytes,
+                    row_bytes + (size_t)PARAMS_N * 4,
+                    row_bytes + (size_t)PARAMS_N * 8,
+                    row_bytes + (size_t)PARAMS_N * 12,
+                    (unsigned long long)PARAMS_N * 4,
+                    in0, in1, in2, in3, sizeof(in0));
+        for (size_t r = 0; r < 4; r++) {
+            expand_a_row_from_bytes(rows + r * (size_t)PARAMS_N, row_bytes + r * (size_t)PARAMS_N * 4);
+        }
+        return;
+    }
+#endif
+    for (size_t r = 0; r < count; r++) {
+        expand_a_row(rows + r * (size_t)PARAMS_N, row_bytes + r * (size_t)PARAMS_N * 4, (uint16_t)(row_idx + r), seed_A);
     }
 }
 
-int venom_mul_add_as_plus_e_u32(uint32_t *out, const int32_t *s, const uint32_t *e, const uint8_t *seed_A)
+int venom_mul_add_as_plus_e_u32(uint32_t *out, const int32_t *s, const uint32_t *e, const uint8_t *seed_A, venom_u32_workspace_t *ws)
 {
     unsigned long long c0 = mul_now_cycles(), c_expand = 0, c_mac = 0, c1;
-    uint32_t *row = (uint32_t *)malloc((size_t)PARAMS_N * sizeof(uint32_t));
-    uint8_t *row_bytes = (uint8_t *)malloc((size_t)PARAMS_N * 4);
-    if (!row || !row_bytes) { free(row); free(row_bytes); return 0; }
+    size_t batch_rows = 1;
+#if defined(__AVX2__) && defined(VENOM_U32_USE_SHAKE4X)
+    batch_rows = (ws && ws->row_count > 0) ? ws->row_count : 4;
+#endif
+    if (batch_rows > 4) batch_rows = 4;
+    uint32_t *rows = (ws && ws->arow) ? ws->arow : (uint32_t *)malloc((size_t)PARAMS_N * 4 * sizeof(uint32_t));
+    uint8_t *row_bytes = (ws && ws->arow_bytes) ? ws->arow_bytes : (uint8_t *)malloc((size_t)PARAMS_N * 16);
+    int own = !(ws && ws->arow && ws->arow_bytes);
+    if (!rows || !row_bytes) { if (own) { free(rows); free(row_bytes); } return 0; }
 
-    for (size_t i = 0; i < PARAMS_N; i++) {
+#if VENOM_U32_CACHE_A
+    uint32_t *A = (uint32_t *)malloc((size_t)PARAMS_N * PARAMS_N * sizeof(uint32_t));
+    if (!A) { if (own) { free(rows); free(row_bytes); } return 0; }
+    for (size_t i = 0; i < (size_t)PARAMS_N; i += batch_rows) {
+        size_t cnt = ((size_t)PARAMS_N - i >= batch_rows) ? batch_rows : ((size_t)PARAMS_N - i);
         c1 = mul_now_cycles();
-        expand_a_row(row, row_bytes, (uint16_t)i, seed_A);
+        expand_a_rows(rows, row_bytes, (uint16_t)i, cnt, seed_A);
         c_expand += mul_now_cycles() - c1;
+        for (size_t r = 0; r < cnt; r++) {
+            memcpy(A + (i + r) * (size_t)PARAMS_N, rows + r * (size_t)PARAMS_N, (size_t)PARAMS_N * sizeof(uint32_t));
+        }
+    }
+#endif
+
+    for (size_t i = 0; i < (size_t)PARAMS_N; i++) {
+        const uint32_t *row = NULL;
+#if VENOM_U32_CACHE_A
+        row = A + i * (size_t)PARAMS_N;
+#else
+        if ((i % batch_rows) == 0) {
+            size_t cnt = ((size_t)PARAMS_N - i >= batch_rows) ? batch_rows : ((size_t)PARAMS_N - i);
+            c1 = mul_now_cycles();
+            expand_a_rows(rows, row_bytes, (uint16_t)i, cnt, seed_A);
+            c_expand += mul_now_cycles() - c1;
+        }
+        row = rows + (i % batch_rows) * (size_t)PARAMS_N;
+#endif
         c1 = mul_now_cycles();
-        for (size_t k = 0; k < PARAMS_NBAR; k++) {
-            int64_t sum = e[i*PARAMS_NBAR + k];
-            for (size_t j = 0; j < PARAMS_N; j++) {
-                sum += (int64_t)row[j] * (int64_t)s[k*PARAMS_N + j];
+        for (size_t k = 0; k < (size_t)PARAMS_NBAR; k++) {
+            int64_t sum = e[i*(size_t)PARAMS_NBAR + k];
+            for (size_t j = 0; j < (size_t)PARAMS_N; j++) {
+                sum += (int64_t)row[j] * (int64_t)s[k*(size_t)PARAMS_N + j];
             }
-            out[i*PARAMS_NBAR + k] = (uint32_t)sum & qmask_mul_u32();
+            out[i*(size_t)PARAMS_NBAR + k] = (uint32_t)sum & qmask_mul_u32();
         }
         c_mac += mul_now_cycles() - c1;
     }
-    clear_bytes((uint8_t *)row, (size_t)PARAMS_N * sizeof(uint32_t));
-    clear_bytes(row_bytes, (size_t)PARAMS_N * 4);
-    free(row);
-    free(row_bytes);
+    if (own) { free(rows); free(row_bytes); }
+#if VENOM_U32_CACHE_A
+    clear_bytes((uint8_t *)A, (size_t)PARAMS_N * PARAMS_N * sizeof(uint32_t));
+    free(A);
+#endif
     if (u32_profile_enabled_mul()) {
         unsigned long long total = mul_now_cycles() - c0;
         double p_expand = (total == 0) ? 0.0 : (100.0 * (double)c_expand / (double)total);
@@ -72,23 +144,33 @@ int venom_mul_add_as_plus_e_u32(uint32_t *out, const int32_t *s, const uint32_t 
     return 1;
 }
 
-int venom_mul_add_sa_plus_e_u32(uint32_t *out, const int32_t *s, const uint32_t *e, const uint8_t *seed_A)
+int venom_mul_add_sa_plus_e_u32(uint32_t *out, const int32_t *s, const uint32_t *e, const uint8_t *seed_A, venom_u32_workspace_t *ws)
 {
     unsigned long long c0 = mul_now_cycles(), c_expand = 0, c_mac = 0, c_out = 0, c1;
-    uint32_t *row = (uint32_t *)malloc((size_t)PARAMS_N * sizeof(uint32_t));
-    uint8_t *row_bytes = (uint8_t *)malloc((size_t)PARAMS_N * 4);
+    size_t batch_rows = 1;
+#if defined(__AVX2__) && defined(VENOM_U32_USE_SHAKE4X)
+    batch_rows = (ws && ws->row_count > 0) ? ws->row_count : 4;
+#endif
+    if (batch_rows > 4) batch_rows = 4;
+    uint32_t *rows = (ws && ws->arow) ? ws->arow : (uint32_t *)malloc((size_t)PARAMS_N * 4 * sizeof(uint32_t));
+    uint8_t *row_bytes = (ws && ws->arow_bytes) ? ws->arow_bytes : (uint8_t *)malloc((size_t)PARAMS_N * 16);
     int64_t *acc = (int64_t *)malloc((size_t)PARAMS_NBAR * PARAMS_N * sizeof(int64_t));
-    if (!row || !row_bytes || !acc) { free(row); free(row_bytes); free(acc); return 0; }
+    int own = !(ws && ws->arow && ws->arow_bytes);
+    if (!rows || !row_bytes || !acc) { if (own) { free(rows); free(row_bytes); } free(acc); return 0; }
 
     for (size_t k = 0; k < PARAMS_NBAR; k++) {
         for (size_t i = 0; i < PARAMS_N; i++) {
             acc[k*PARAMS_N + i] = e[k*PARAMS_N + i];
         }
     }
-    for (size_t i = 0; i < PARAMS_N; i++) {
-        c1 = mul_now_cycles();
-        expand_a_row(row, row_bytes, (uint16_t)i, seed_A);
-        c_expand += mul_now_cycles() - c1;
+    for (size_t i = 0; i < (size_t)PARAMS_N; i++) {
+        if ((i % batch_rows) == 0) {
+            size_t cnt = ((size_t)PARAMS_N - i >= batch_rows) ? batch_rows : ((size_t)PARAMS_N - i);
+            c1 = mul_now_cycles();
+            expand_a_rows(rows, row_bytes, (uint16_t)i, cnt, seed_A);
+            c_expand += mul_now_cycles() - c1;
+        }
+        const uint32_t *row = rows + (i % batch_rows) * (size_t)PARAMS_N;
         c1 = mul_now_cycles();
         for (size_t k = 0; k < PARAMS_NBAR; k++) {
             int64_t si = s[k*PARAMS_N + i];
@@ -105,11 +187,8 @@ int venom_mul_add_sa_plus_e_u32(uint32_t *out, const int32_t *s, const uint32_t 
         }
     }
     c_out += mul_now_cycles() - c1;
-    clear_bytes((uint8_t *)row, (size_t)PARAMS_N * sizeof(uint32_t));
-    clear_bytes(row_bytes, (size_t)PARAMS_N * 4);
     clear_bytes((uint8_t *)acc, (size_t)PARAMS_NBAR * PARAMS_N * sizeof(int64_t));
-    free(row);
-    free(row_bytes);
+    if (own) { free(rows); free(row_bytes); }
     free(acc);
     if (u32_profile_enabled_mul()) {
         unsigned long long total = mul_now_cycles() - c0;
