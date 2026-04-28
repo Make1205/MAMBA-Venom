@@ -68,10 +68,10 @@ static int u32_profile_enabled(void)
 static size_t u32_row_batch_rows(void)
 {
     const char *p = getenv("VENOM_U32_ROW_BATCH");
-    if (p == NULL || *p == '\0') return 4;
+    if (p == NULL || *p == '\0') return 16;
     long v = strtol(p, NULL, 10);
     if (v == 1 || v == 4 || v == 8 || v == 16) return (size_t)v;
-    return 4;
+    return 16;
 }
 static void u32_profile_report(const char *fn, const char *stage, unsigned long long cyc, unsigned long long total)
 {

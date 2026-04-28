@@ -38,7 +38,7 @@ static inline unsigned long long mul_now_cycles(void)
 #error "VENOM_U32_A_WORD_BYTES must be 3 or 4"
 #endif
 #ifndef VENOM_U32_A_PARSE_STYLE
-#define VENOM_U32_A_PARSE_STYLE 1
+#define VENOM_U32_A_PARSE_STYLE 0
 #endif
 #define A_ROW_BYTES ((size_t)PARAMS_N * VENOM_U32_A_WORD_BYTES)
 static venom_u32_fast_stats_t g_u32_fast_stats = {0};
