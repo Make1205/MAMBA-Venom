@@ -51,6 +51,10 @@ Environment toggles for benchmark orchestration:
 - `ONLY_LEVEL=<128|192|256|384|512>`
 - `ONLY_MODE=<REFERENCE|AVX2>`
 - `PROFILE_U32=0|1` (enable u32 profile logs for level 384/512)
-- `VENOM_U32_ROW_BATCH=<1|4|8|16>` (streaming expandA row batching; default `4`)
 
-`Venom-384/512` AVX2-u32 path is streaming/row-batched only. Full-matrix cache-A mode is not supported.
+CSV naming conventions:
+
+- `backend`: `ref` for `REFERENCE`, `avx2` for `AVX2`
+- `notes`:
+  - REFERENCE: `u16` for 128/192/256, `u32` for 384/512
+  - AVX2: `u16` for 128/192/256, `u32_full_shake4x` for 384/512
