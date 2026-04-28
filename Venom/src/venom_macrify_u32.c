@@ -3,7 +3,7 @@
 #include "venom_u32_core.h"
 #include "venom_macrify.h"
 #include "../../common/sha3/fips202.h"
-#if defined(__AVX2__) && defined(VENOM_U32_USE_SHAKE4X)
+#if defined(__AVX2__)
 #include "../../common/sha3/fips202x4.h"
 #endif
 #include <stdio.h>
@@ -103,7 +103,7 @@ static inline void expandA_row_u32_fast(uint32_t *row, uint8_t *row_bytes, uint1
 
 static inline void expandA_4rows_u32_fast(uint32_t *rows, uint8_t *row_bytes, uint16_t row_idx, size_t count, const uint8_t *seed_A)
 {
-#if defined(__AVX2__) && defined(VENOM_U32_USE_SHAKE4X)
+#if defined(__AVX2__)
     if (count == 4) {
         uint8_t in0[2 + BYTES_SEED_A], in1[2 + BYTES_SEED_A], in2[2 + BYTES_SEED_A], in3[2 + BYTES_SEED_A];
         memcpy(&in0[2], seed_A, BYTES_SEED_A);
@@ -124,8 +124,8 @@ static inline void expandA_4rows_u32_fast(uint32_t *rows, uint8_t *row_bytes, ui
             expand_a_row_from_bytes(rows + r * (size_t)PARAMS_N, row_bytes + r * A_ROW_BYTES);
         }
         g_u32_fast_stats.expand_row_calls += 4;
-        g_u32_fast_stats.shake_init_calls += 4;
-        g_u32_fast_stats.shake_squeeze_calls += 4;
+        g_u32_fast_stats.shake_init_calls += 1;
+        g_u32_fast_stats.shake_squeeze_calls += 1;
         g_u32_fast_stats.bytes_squeezed_for_a += 4 * A_ROW_BYTES;
         return;
     }
@@ -139,7 +139,7 @@ static int mul_A_times_S_u32_fast(uint32_t *out, const int32_t *s, const uint32_
 {
     unsigned long long c0 = mul_now_cycles(), c_expand = 0, c_mac = 0, c1;
     size_t batch_rows = 1;
-#if defined(__AVX2__) && defined(VENOM_U32_USE_SHAKE4X)
+#if defined(__AVX2__)
     batch_rows = (ws && ws->row_count > 0) ? ws->row_count : 4;
 #endif
     if (batch_rows > 4) batch_rows = 4;
@@ -234,7 +234,7 @@ static int mul_AT_times_R_u32_fast(uint32_t *out, const int32_t *s, const uint32
 {
     unsigned long long c0 = mul_now_cycles(), c_expand = 0, c_mac = 0, c_out = 0, c1;
     size_t batch_rows = 1;
-#if defined(__AVX2__) && defined(VENOM_U32_USE_SHAKE4X)
+#if defined(__AVX2__)
     batch_rows = (ws && ws->row_count > 0) ? ws->row_count : 4;
 #endif
     if (batch_rows > 4) batch_rows = 4;
