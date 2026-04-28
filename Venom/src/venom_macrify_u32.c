@@ -31,9 +31,6 @@ static inline unsigned long long mul_now_cycles(void)
 }
 #endif
 
-#ifndef VENOM_U32_CACHE_A
-#define VENOM_U32_CACHE_A 0
-#endif
 #ifndef VENOM_U32_A_WORD_BYTES
 #define VENOM_U32_A_WORD_BYTES 3
 #endif
@@ -45,6 +42,7 @@ static inline unsigned long long mul_now_cycles(void)
 #endif
 #define A_ROW_BYTES ((size_t)PARAMS_N * VENOM_U32_A_WORD_BYTES)
 static venom_u32_fast_stats_t g_u32_fast_stats = {0};
+static size_t g_active_batch_rows = 1;
 
 void venom_u32_fast_stats_reset(void)
 {
@@ -91,6 +89,12 @@ static void expand_a_row_from_bytes(uint32_t *row, const uint8_t *row_bytes)
 #endif
 }
 
+static inline void u32_stats_set_modes(void)
+{
+    g_u32_fast_stats.coeff_parse_mode = (uint64_t)VENOM_U32_A_WORD_BYTES;
+    g_u32_fast_stats.a_rows_per_shake_batch = (uint64_t)g_active_batch_rows;
+}
+
 static inline void expandA_row_u32_fast(uint32_t *row, uint8_t *row_bytes, uint16_t row_idx, const uint8_t *seed_A)
 {
     uint8_t in[2 + BYTES_SEED_A];
@@ -105,10 +109,10 @@ static inline void expandA_row_u32_fast(uint32_t *row, uint8_t *row_bytes, uint1
     g_u32_fast_stats.bytes_squeezed_for_a += A_ROW_BYTES;
 }
 
-static inline void expandA_4rows_u32_fast(uint32_t *rows, uint8_t *row_bytes, uint16_t row_idx, size_t count, const uint8_t *seed_A)
+static inline void expandA_rows_u32_fast(uint32_t *rows, uint8_t *row_bytes, uint16_t row_idx, size_t count, const uint8_t *seed_A)
 {
 #if defined(USE_AVX2_U32)
-    if (count == 4) {
+    while (count >= 4) {
         uint8_t in0[2 + BYTES_SEED_A], in1[2 + BYTES_SEED_A], in2[2 + BYTES_SEED_A], in3[2 + BYTES_SEED_A];
         memcpy(&in0[2], seed_A, BYTES_SEED_A);
         memcpy(&in1[2], seed_A, BYTES_SEED_A);
@@ -131,7 +135,11 @@ static inline void expandA_4rows_u32_fast(uint32_t *rows, uint8_t *row_bytes, ui
         g_u32_fast_stats.shake_init_calls += 1;
         g_u32_fast_stats.shake_squeeze_calls += 1;
         g_u32_fast_stats.bytes_squeezed_for_a += 4 * A_ROW_BYTES;
-        return;
+        g_u32_fast_stats.shake4x_used = 1;
+        rows += 4 * (size_t)PARAMS_N;
+        row_bytes += 4 * A_ROW_BYTES;
+        row_idx = (uint16_t)(row_idx + 4);
+        count -= 4;
     }
 #endif
     for (size_t r = 0; r < count; r++) {
@@ -173,39 +181,22 @@ static int mul_A_times_S_u32_fast(uint32_t *out, const int32_t *s, const uint32_
 #if defined(USE_AVX2_U32)
     batch_rows = (ws && ws->row_count > 0) ? ws->row_count : 4;
 #endif
-    if (batch_rows > 4) batch_rows = 4;
-    uint32_t *rows = (ws && ws->arow) ? ws->arow : (uint32_t *)malloc((size_t)PARAMS_N * 4 * sizeof(uint32_t));
-    uint8_t *row_bytes = (ws && ws->arow_bytes) ? ws->arow_bytes : (uint8_t *)malloc(4 * A_ROW_BYTES);
+    if (batch_rows > 16) batch_rows = 16;
+    g_active_batch_rows = batch_rows;
+    u32_stats_set_modes();
+    uint32_t *rows = (ws && ws->arow) ? ws->arow : (uint32_t *)malloc((size_t)PARAMS_N * batch_rows * sizeof(uint32_t));
+    uint8_t *row_bytes = (ws && ws->arow_bytes) ? ws->arow_bytes : (uint8_t *)malloc(batch_rows * A_ROW_BYTES);
     int own = !(ws && ws->arow && ws->arow_bytes);
     if (!rows || !row_bytes) { if (own) { free(rows); free(row_bytes); } return 0; }
 
-#if VENOM_U32_CACHE_A
-    uint32_t *A = (uint32_t *)malloc((size_t)PARAMS_N * PARAMS_N * sizeof(uint32_t));
-    if (!A) { if (own) { free(rows); free(row_bytes); } return 0; }
-    for (size_t i = 0; i < (size_t)PARAMS_N; i += batch_rows) {
-        size_t cnt = ((size_t)PARAMS_N - i >= batch_rows) ? batch_rows : ((size_t)PARAMS_N - i);
-        c1 = mul_now_cycles();
-        expandA_4rows_u32_fast(rows, row_bytes, (uint16_t)i, cnt, seed_A);
-        c_expand += mul_now_cycles() - c1;
-        for (size_t r = 0; r < cnt; r++) {
-            memcpy(A + (i + r) * (size_t)PARAMS_N, rows + r * (size_t)PARAMS_N, (size_t)PARAMS_N * sizeof(uint32_t));
-        }
-    }
-#endif
-
     for (size_t i = 0; i < (size_t)PARAMS_N; i++) {
-        const uint32_t *row = NULL;
-#if VENOM_U32_CACHE_A
-        row = A + i * (size_t)PARAMS_N;
-#else
         if ((i % batch_rows) == 0) {
             size_t cnt = ((size_t)PARAMS_N - i >= batch_rows) ? batch_rows : ((size_t)PARAMS_N - i);
             c1 = mul_now_cycles();
-            expandA_4rows_u32_fast(rows, row_bytes, (uint16_t)i, cnt, seed_A);
+            expandA_rows_u32_fast(rows, row_bytes, (uint16_t)i, cnt, seed_A);
             c_expand += mul_now_cycles() - c1;
         }
-        row = rows + (i % batch_rows) * (size_t)PARAMS_N;
-#endif
+        const uint32_t *row = rows + (i % batch_rows) * (size_t)PARAMS_N;
         c1 = mul_now_cycles();
         const int32_t *s0 = s + 0*(size_t)PARAMS_N;
         const int32_t *s1 = s + 1*(size_t)PARAMS_N;
@@ -258,10 +249,6 @@ static int mul_A_times_S_u32_fast(uint32_t *out, const int32_t *s, const uint32_
     g_u32_fast_stats.mac_ops += (uint64_t)PARAMS_N * (uint64_t)PARAMS_N * (uint64_t)PARAMS_NBAR;
     g_u32_fast_stats.matrix_products += 1;
     if (own) { free(rows); free(row_bytes); }
-#if VENOM_U32_CACHE_A
-    clear_bytes((uint8_t *)A, (size_t)PARAMS_N * PARAMS_N * sizeof(uint32_t));
-    free(A);
-#endif
     if (u32_profile_enabled_mul()) {
         unsigned long long total = mul_now_cycles() - c0;
         double p_expand = (total == 0) ? 0.0 : (100.0 * (double)c_expand / (double)total);
@@ -279,9 +266,11 @@ static int mul_AT_times_R_u32_fast(uint32_t *out, const int32_t *s, const uint32
 #if defined(USE_AVX2_U32)
     batch_rows = (ws && ws->row_count > 0) ? ws->row_count : 4;
 #endif
-    if (batch_rows > 4) batch_rows = 4;
-    uint32_t *rows = (ws && ws->arow) ? ws->arow : (uint32_t *)malloc((size_t)PARAMS_N * 4 * sizeof(uint32_t));
-    uint8_t *row_bytes = (ws && ws->arow_bytes) ? ws->arow_bytes : (uint8_t *)malloc(4 * A_ROW_BYTES);
+    if (batch_rows > 16) batch_rows = 16;
+    g_active_batch_rows = batch_rows;
+    u32_stats_set_modes();
+    uint32_t *rows = (ws && ws->arow) ? ws->arow : (uint32_t *)malloc((size_t)PARAMS_N * batch_rows * sizeof(uint32_t));
+    uint8_t *row_bytes = (ws && ws->arow_bytes) ? ws->arow_bytes : (uint8_t *)malloc(batch_rows * A_ROW_BYTES);
     int64_t *acc = (int64_t *)malloc((size_t)PARAMS_NBAR * PARAMS_N * sizeof(int64_t));
     int own = !(ws && ws->arow && ws->arow_bytes);
     if (!rows || !row_bytes || !acc) { if (own) { free(rows); free(row_bytes); } free(acc); return 0; }
@@ -295,7 +284,7 @@ static int mul_AT_times_R_u32_fast(uint32_t *out, const int32_t *s, const uint32
         if ((i % batch_rows) == 0) {
             size_t cnt = ((size_t)PARAMS_N - i >= batch_rows) ? batch_rows : ((size_t)PARAMS_N - i);
             c1 = mul_now_cycles();
-            expandA_4rows_u32_fast(rows, row_bytes, (uint16_t)i, cnt, seed_A);
+            expandA_rows_u32_fast(rows, row_bytes, (uint16_t)i, cnt, seed_A);
             c_expand += mul_now_cycles() - c1;
         }
         const uint32_t *row = rows + (i % batch_rows) * (size_t)PARAMS_N;

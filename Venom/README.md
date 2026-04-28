@@ -8,8 +8,8 @@ This directory contains the standard `MAMBA-Venom` implementation in the same C 
 - `Venom-128` (implemented)
 - `Venom-192` (implemented)
 - `Venom-256` (implemented)
-- `Venom-384` (32-bit reference backend)
-- `Venom-512` (32-bit reference backend)
+- `Venom-384` (32-bit backend: ref + AVX2-u32 streaming)
+- `Venom-512` (32-bit backend: ref + AVX2-u32 streaming)
 
 ## Build
 
@@ -51,3 +51,6 @@ Environment toggles for benchmark orchestration:
 - `ONLY_LEVEL=<128|192|256|384|512>`
 - `ONLY_MODE=<REFERENCE|AVX2>`
 - `PROFILE_U32=0|1` (enable u32 profile logs for level 384/512)
+- `VENOM_U32_ROW_BATCH=<1|4|8|16>` (streaming expandA row batching; default `4`)
+
+`Venom-384/512` AVX2-u32 path is streaming/row-batched only. Full-matrix cache-A mode is not supported.

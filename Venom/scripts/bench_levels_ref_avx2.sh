@@ -11,6 +11,7 @@ ONLY_LEVEL=${ONLY_LEVEL:-}
 RUN_REFERENCE=${RUN_REFERENCE:-1}
 RUN_AVX2=${RUN_AVX2:-1}
 PROFILE_U32=${PROFILE_U32:-0}
+VENOM_U32_ROW_BATCH=${VENOM_U32_ROW_BATCH:-4}
 REPS=${REPS:-}
 
 get_level_env_default(){ local p="$1" l="$2" d="$3" ar="${4:-0}"; local v="${p}_${l}"; local val="${!v:-}"; if [[ "$ar" == "1" && -n "$REPS" ]]; then echo "$REPS"; elif [[ -n "$val" ]]; then echo "$val"; else echo "$d"; fi; }
@@ -39,7 +40,13 @@ notes_for_run(){
     if [[ "$mode" == "REFERENCE" ]]; then
       echo "u32"
     else
-      echo "u32_full"
+      case "$VENOM_U32_ROW_BATCH" in
+        1) echo "u32_full_scalar_row_stream" ;;
+        4) echo "u32_full_shake4x" ;;
+        8) echo "u32_full_shake4x_8row" ;;
+        16) echo "u32_full_shake4x_16row" ;;
+        *) echo "u32_full" ;;
+      esac
     fi
   else
     echo "u16"
@@ -66,6 +73,7 @@ echo "[info] Output CSV: $OUT_CSV"
 echo "[info] Running benchmarks for modes: ${modes[*]}"
 
 echo "[info] PROFILE_U32=$PROFILE_U32"
+echo "[info] VENOM_U32_ROW_BATCH=$VENOM_U32_ROW_BATCH"
 
 for mode in "${modes[@]}"; do
   echo "[info] ===== Building mode: $mode ====="
@@ -94,7 +102,7 @@ for mode in "${modes[@]}"; do
     echo "[info] Running mode=$mode, level=$level, correctness=$correct_iters, bench_seconds=$bench_seconds, timeout=${timeout_s}s"
     tmp_log=$(mktemp)
     set +e
-    timeout "$timeout_s" env PROFILE_U32="$PROFILE_U32" VENOM_KEM_TEST_ITERATIONS="$correct_iters" VENOM_KEM_BENCH_SECONDS="$bench_seconds" BENCH_VERBOSE="${BENCH_VERBOSE:-0}" DEBUG_BENCH="${DEBUG_BENCH:-0}" "$VENOM_DIR/$bin" >"$tmp_log" 2>&1
+    timeout "$timeout_s" env PROFILE_U32="$PROFILE_U32" PROFILE_U32_AVX2="$PROFILE_U32" VENOM_U32_ROW_BATCH="$VENOM_U32_ROW_BATCH" VENOM_KEM_TEST_ITERATIONS="$correct_iters" VENOM_KEM_BENCH_SECONDS="$bench_seconds" BENCH_VERBOSE="${BENCH_VERBOSE:-0}" DEBUG_BENCH="${DEBUG_BENCH:-0}" "$VENOM_DIR/$bin" >"$tmp_log" 2>&1
     rc=$?
     set -e
 

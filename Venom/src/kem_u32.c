@@ -19,8 +19,8 @@
 #if (VENOM_U32_A_WORD_BYTES != 3) && (VENOM_U32_A_WORD_BYTES != 4)
 #error "VENOM_U32_A_WORD_BYTES must be 3 or 4"
 #endif
-#define AROW_BYTES ((size_t)PARAMS_N * 4)
-#define AROW_XOF_BYTES ((size_t)PARAMS_N * 4 * VENOM_U32_A_WORD_BYTES)
+#define AROW_WORDS_ONE_ROW ((size_t)PARAMS_N)
+#define AROW_XOF_ONE_ROW ((size_t)PARAMS_N * VENOM_U32_A_WORD_BYTES)
 
 #define PK_PACKED_BYTES ((PARAMS_PK_LOGP * PARAMS_N * PARAMS_NBAR) / 8)
 #define CT_C1_PACKED_BYTES ((PARAMS_U_LOGP * PARAMS_N * PARAMS_NBAR) / 8)
@@ -65,6 +65,14 @@ static int u32_profile_enabled(void)
     const char *q = getenv("PROFILE_U32_AVX2");
     return ((p != NULL && strcmp(p, "1") == 0) || (q != NULL && strcmp(q, "1") == 0));
 }
+static size_t u32_row_batch_rows(void)
+{
+    const char *p = getenv("VENOM_U32_ROW_BATCH");
+    if (p == NULL || *p == '\0') return 4;
+    long v = strtol(p, NULL, 10);
+    if (v == 1 || v == 4 || v == 8 || v == 16) return (size_t)v;
+    return 4;
+}
 static void u32_profile_report(const char *fn, const char *stage, unsigned long long cyc, unsigned long long total)
 {
     if (!u32_profile_enabled()) return;
@@ -76,12 +84,15 @@ static void u32_profile_report_counts(const char *fn, const venom_u32_fast_stats
 {
     if (!u32_profile_enabled()) return;
     fprintf(stderr,
-            "[profile-u32-counts] level=%d fn=%s expand_rows=%llu shake_init=%llu shake_squeeze=%llu bytes_squeezed=%llu mac_ops=%llu matrix_products=%llu\n",
+            "[profile-u32-counts] level=%d fn=%s expand_rows=%llu shake_init=%llu shake_squeeze=%llu bytes_squeezed=%llu rows_per_batch=%llu coeff_parse_bytes=%llu shake4x=%llu mac_ops=%llu matrix_products=%llu\n",
             PARAMS_N, fn,
             (unsigned long long)st->expand_row_calls,
             (unsigned long long)st->shake_init_calls,
             (unsigned long long)st->shake_squeeze_calls,
             (unsigned long long)st->bytes_squeezed_for_a,
+            (unsigned long long)st->a_rows_per_shake_batch,
+            (unsigned long long)st->coeff_parse_mode,
+            (unsigned long long)st->shake4x_used,
             (unsigned long long)st->mac_ops,
             (unsigned long long)st->matrix_products);
 }
@@ -176,9 +187,10 @@ int crypto_kem_keypair(unsigned char* pk, unsigned char* sk)
     uint32_t *B_split = calloc((size_t)PARAMS_N * PARAMS_NBAR, sizeof(uint32_t));
     uint32_t *E_zero = calloc((size_t)PARAMS_N * PARAMS_NBAR, sizeof(uint32_t));
     int32_t *S = calloc((size_t)PARAMS_N * PARAMS_NBAR, sizeof(int32_t));
-    uint32_t *Arow = calloc(AROW_BYTES, sizeof(uint32_t));
-    uint8_t *Arow_bytes = calloc(AROW_XOF_BYTES, 1);
-    venom_u32_workspace_t ws = { Arow, Arow_bytes, 4 };
+    size_t row_batch = u32_row_batch_rows();
+    uint32_t *Arow = calloc(AROW_WORDS_ONE_ROW * row_batch, sizeof(uint32_t));
+    uint8_t *Arow_bytes = calloc(AROW_XOF_ONE_ROW * row_batch, 1);
+    venom_u32_workspace_t ws = { Arow, Arow_bytes, row_batch };
     if (!B_raw || !B_split || !E_zero || !S || !Arow || !Arow_bytes) return 1;
 
     if (randombytes(randomness, sizeof(randomness)) != 0) return 1;
@@ -213,10 +225,10 @@ int crypto_kem_keypair(unsigned char* pk, unsigned char* sk)
     {
         unsigned long long total = now_cycles() - c0;
         venom_u32_fast_stats_t st = venom_u32_fast_stats_get();
-        u32_profile_report("keygen", "sample_S", cyc_sample, total);
+        u32_profile_report("keygen", "cbd_sample_S", cyc_sample, total);
         u32_profile_report("keygen", "mul_A_times_S", cyc_mul, total);
-        u32_profile_report("keygen", "quantize_pack_pk", cyc_quant_pack, total);
-        u32_profile_report("keygen", "hash_pkh", cyc_hash, total);
+        u32_profile_report("keygen", "pack_quantize_pk", cyc_quant_pack, total);
+        u32_profile_report("keygen", "hash_kdf", cyc_hash, total);
         u32_profile_report_counts("keygen", &st);
     }
     if (bench_verbose_enabled()) { fprintf(stderr, "[bench-u32] level=%d fn=keygen end keygen total %.3fs\n", PARAMS_N, now_s() - t0); }
@@ -245,9 +257,10 @@ int crypto_kem_enc(unsigned char *ct, unsigned char *ss, const unsigned char *pk
     uint32_t *E_zero = calloc((size_t)PARAMS_NBAR * PARAMS_N, sizeof(uint32_t));
     uint32_t *E_zero_nbar = calloc((size_t)PARAMS_NBAR * PARAMS_NBAR, sizeof(uint32_t));
     int32_t *Sp = calloc((size_t)PARAMS_NBAR * PARAMS_N, sizeof(int32_t));
-    uint32_t *Arow = calloc(AROW_BYTES, sizeof(uint32_t));
-    uint8_t *Arow_bytes = calloc(AROW_XOF_BYTES, 1);
-    venom_u32_workspace_t ws = { Arow, Arow_bytes, 4 };
+    size_t row_batch = u32_row_batch_rows();
+    uint32_t *Arow = calloc(AROW_WORDS_ONE_ROW * row_batch, sizeof(uint32_t));
+    uint8_t *Arow_bytes = calloc(AROW_XOF_ONE_ROW * row_batch, 1);
+    venom_u32_workspace_t ws = { Arow, Arow_bytes, row_batch };
     uint8_t *mu = calloc(BYTES_MU, 1);
     uint8_t rnd_mu_salt[BYTES_MU + BYTES_SALT];
     uint8_t G2in[BYTES_PKHASH + BYTES_MU + BYTES_SALT];
@@ -299,11 +312,11 @@ int crypto_kem_enc(unsigned char *ct, unsigned char *ss, const unsigned char *pk
     {
         unsigned long long total = now_cycles() - c0;
         venom_u32_fast_stats_t st = venom_u32_fast_stats_get();
-        u32_profile_report("encaps", "g2_and_sample_Sp", cyc_g2_sample, total);
+        u32_profile_report("encaps", "hash_kdf_and_cbd_Sp", cyc_g2_sample, total);
         u32_profile_report("encaps", "mul_u_path", cyc_mul_u, total);
-        u32_profile_report("encaps", "rebuild_pk", cyc_pk_rebuild, total);
+        u32_profile_report("encaps", "unpack_rebuild_pk", cyc_pk_rebuild, total);
         u32_profile_report("encaps", "mul_v_path", cyc_mul_v, total);
-        u32_profile_report("encaps", "final_hash", cyc_misc, total);
+        u32_profile_report("encaps", "hash_kdf", cyc_misc, total);
         u32_profile_report_counts("encaps", &st);
     }
     free(Arow); free(Arow_bytes);
@@ -342,9 +355,10 @@ int crypto_kem_dec(unsigned char *ss, const unsigned char *ct, const unsigned ch
     uint32_t *E_zero_nbar = calloc((size_t)PARAMS_NBAR * PARAMS_NBAR, sizeof(uint32_t));
     int32_t *S = calloc((size_t)PARAMS_NBAR * PARAMS_N, sizeof(int32_t));
     int32_t *Sp = calloc((size_t)PARAMS_NBAR * PARAMS_N, sizeof(int32_t));
-    uint32_t *Arow = calloc(AROW_BYTES, sizeof(uint32_t));
-    uint8_t *Arow_bytes = calloc(AROW_XOF_BYTES, 1);
-    venom_u32_workspace_t ws = { Arow, Arow_bytes, 4 };
+    size_t row_batch = u32_row_batch_rows();
+    uint32_t *Arow = calloc(AROW_WORDS_ONE_ROW * row_batch, sizeof(uint32_t));
+    uint8_t *Arow_bytes = calloc(AROW_XOF_ONE_ROW * row_batch, 1);
+    venom_u32_workspace_t ws = { Arow, Arow_bytes, row_batch };
     uint8_t *muprime = calloc(BYTES_MU, 1);
     uint8_t *G2in = calloc(BYTES_PKHASH + BYTES_MU + BYTES_SALT, 1);
     uint8_t *G2out = calloc(BYTES_SEED_SE + CRYPTO_BYTES, 1);
@@ -403,11 +417,11 @@ int crypto_kem_dec(unsigned char *ss, const unsigned char *ct, const unsigned ch
     {
         unsigned long long total = now_cycles() - c0;
         venom_u32_fast_stats_t st = venom_u32_fast_stats_get();
-        u32_profile_report("decaps", "rebuild_ct", cyc_rebuild_ct, total);
+        u32_profile_report("decaps", "unpack_rebuild_ct", cyc_rebuild_ct, total);
         u32_profile_report("decaps", "mul_bp_times_s", cyc_mul_bs, total);
         u32_profile_report("decaps", "reenc_u_path", cyc_reenc_u, total);
         u32_profile_report("decaps", "reenc_v_path", cyc_reenc_v, total);
-        u32_profile_report("decaps", "other_hash_verify", cyc_other, total);
+        u32_profile_report("decaps", "hash_kdf_verify", cyc_other, total);
         u32_profile_report_counts("decaps", &st);
     }
     free(Arow); free(Arow_bytes);

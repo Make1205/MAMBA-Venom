@@ -15,6 +15,9 @@ typedef struct {
     uint64_t shake_init_calls;
     uint64_t shake_squeeze_calls;
     uint64_t bytes_squeezed_for_a;
+    uint64_t a_rows_per_shake_batch;
+    uint64_t shake4x_used;
+    uint64_t coeff_parse_mode;
     uint64_t mac_ops;
     uint64_t matrix_products;
 } venom_u32_fast_stats_t;
