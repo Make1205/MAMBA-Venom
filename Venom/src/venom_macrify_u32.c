@@ -7,6 +7,9 @@
 #include "../../common/sha3/fips202x4.h"
 #endif
 #include <stdio.h>
+#if defined(__AVX2__)
+#include <immintrin.h>
+#endif
 
 static inline uint32_t qmask_mul_u32(void) { return (1u << PARAMS_LOGQ) - 1u; }
 static int u32_profile_enabled_mul(void)
@@ -135,6 +138,33 @@ static inline void expandA_4rows_u32_fast(uint32_t *rows, uint8_t *row_bytes, ui
     }
 }
 
+#if defined(__AVX2__)
+static inline int64_t dot_u32_i32_avx2(const uint32_t *a, const int32_t *b)
+{
+    __m256i acc = _mm256_setzero_si256();
+    size_t j = 0;
+    for (; j + 8 <= (size_t)PARAMS_N; j += 8) {
+        __m256i va = _mm256_loadu_si256((const __m256i *)(a + j));
+        __m256i vb = _mm256_loadu_si256((const __m256i *)(b + j));
+        __m256i prod_even = _mm256_mul_epi32(va, vb);
+        __m256i va_odd = _mm256_srli_epi64(va, 32);
+        __m256i vb_odd = _mm256_srli_epi64(vb, 32);
+        __m256i prod_odd = _mm256_mul_epi32(va_odd, vb_odd);
+        acc = _mm256_add_epi64(acc, prod_even);
+        acc = _mm256_add_epi64(acc, prod_odd);
+    }
+    __m128i lo = _mm256_castsi256_si128(acc);
+    __m128i hi = _mm256_extracti128_si256(acc, 1);
+    __m128i s = _mm_add_epi64(lo, hi);
+    s = _mm_add_epi64(s, _mm_unpackhi_epi64(s, s));
+    int64_t sum = (int64_t)_mm_cvtsi128_si64(s);
+    for (; j < (size_t)PARAMS_N; j++) {
+        sum += (int64_t)a[j] * (int64_t)b[j];
+    }
+    return sum;
+}
+#endif
+
 static int mul_A_times_S_u32_fast(uint32_t *out, const int32_t *s, const uint32_t *e, const uint8_t *seed_A, venom_u32_workspace_t *ws)
 {
     unsigned long long c0 = mul_now_cycles(), c_expand = 0, c_mac = 0, c1;
@@ -192,6 +222,16 @@ static int mul_A_times_S_u32_fast(uint32_t *out, const int32_t *s, const uint32_
         int64_t acc5 = e[i*(size_t)PARAMS_NBAR + 5];
         int64_t acc6 = e[i*(size_t)PARAMS_NBAR + 6];
         int64_t acc7 = e[i*(size_t)PARAMS_NBAR + 7];
+#if defined(__AVX2__)
+        acc0 += dot_u32_i32_avx2(row, s0);
+        acc1 += dot_u32_i32_avx2(row, s1);
+        acc2 += dot_u32_i32_avx2(row, s2);
+        acc3 += dot_u32_i32_avx2(row, s3);
+        acc4 += dot_u32_i32_avx2(row, s4);
+        acc5 += dot_u32_i32_avx2(row, s5);
+        acc6 += dot_u32_i32_avx2(row, s6);
+        acc7 += dot_u32_i32_avx2(row, s7);
+#else
         for (size_t j = 0; j < (size_t)PARAMS_N; j++) {
             int64_t a = (int64_t)row[j];
             acc0 += a * (int64_t)s0[j];
@@ -203,6 +243,7 @@ static int mul_A_times_S_u32_fast(uint32_t *out, const int32_t *s, const uint32_
             acc6 += a * (int64_t)s6[j];
             acc7 += a * (int64_t)s7[j];
         }
+#endif
         out[i*(size_t)PARAMS_NBAR + 0] = (uint32_t)acc0 & qmask_mul_u32();
         out[i*(size_t)PARAMS_NBAR + 1] = (uint32_t)acc1 & qmask_mul_u32();
         out[i*(size_t)PARAMS_NBAR + 2] = (uint32_t)acc2 & qmask_mul_u32();
