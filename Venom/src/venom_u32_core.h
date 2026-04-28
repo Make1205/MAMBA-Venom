@@ -10,6 +10,15 @@ typedef struct {
     size_t row_count;
 } venom_u32_workspace_t;
 
+typedef struct {
+    uint64_t expand_row_calls;
+    uint64_t shake_init_calls;
+    uint64_t shake_squeeze_calls;
+    uint64_t bytes_squeezed_for_a;
+    uint64_t mac_ops;
+    uint64_t matrix_products;
+} venom_u32_fast_stats_t;
+
 int venom_mul_add_as_plus_e_u32(uint32_t *out, const int32_t *s, const uint32_t *e, const uint8_t *seed_A, venom_u32_workspace_t *ws);
 int venom_mul_add_sa_plus_e_u32(uint32_t *out, const int32_t *s, const uint32_t *e, const uint8_t *seed_A, venom_u32_workspace_t *ws);
 void venom_mul_bs_u32(uint32_t *out, const uint32_t *b, const int32_t *s);
@@ -21,5 +30,7 @@ void venom_key_encode_u32(uint32_t *out, const uint8_t *in);
 void venom_key_decode_u32(uint8_t *out, const uint32_t *in);
 
 void venom_sample_n_u32(int32_t *s, const uint16_t *rnd, size_t n, unsigned eta);
+void venom_u32_fast_stats_reset(void);
+venom_u32_fast_stats_t venom_u32_fast_stats_get(void);
 
 #endif

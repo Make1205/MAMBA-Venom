@@ -71,6 +71,19 @@ static void u32_profile_report(const char *fn, const char *stage, unsigned long 
     fprintf(stderr, "[profile-u32] level=%d fn=%s stage=%s cycles=%llu (%.2f%%)\n",
             PARAMS_N, fn, stage, cyc, pct);
 }
+static void u32_profile_report_counts(const char *fn, const venom_u32_fast_stats_t *st)
+{
+    if (!u32_profile_enabled()) return;
+    fprintf(stderr,
+            "[profile-u32-counts] level=%d fn=%s expand_rows=%llu shake_init=%llu shake_squeeze=%llu bytes_squeezed=%llu mac_ops=%llu matrix_products=%llu\n",
+            PARAMS_N, fn,
+            (unsigned long long)st->expand_row_calls,
+            (unsigned long long)st->shake_init_calls,
+            (unsigned long long)st->shake_squeeze_calls,
+            (unsigned long long)st->bytes_squeezed_for_a,
+            (unsigned long long)st->mac_ops,
+            (unsigned long long)st->matrix_products);
+}
 
 static int8_t ct_verify_u32(const uint32_t *a, const uint32_t *b, size_t len)
 {
@@ -175,6 +188,7 @@ int crypto_kem_keypair(unsigned char* pk, unsigned char* sk)
 
     bench_log("keygen", "start keygen multiplication");
     c1 = now_cycles();
+    venom_u32_fast_stats_reset();
     if (!venom_mul_add_as_plus_e_u32(B_raw, S, E_zero, pk_seedA, &ws)) return 1;
     cyc_mul += now_cycles() - c1;
     if (bench_verbose_enabled()) { fprintf(stderr, "[bench-u32] level=%d fn=keygen end keygen multiplication %.3fs\n", PARAMS_N, now_s() - t0); }
@@ -197,10 +211,12 @@ int crypto_kem_keypair(unsigned char* pk, unsigned char* sk)
     free(B_raw); free(B_split); free(E_zero); free(S); free(Arow); free(Arow_bytes);
     {
         unsigned long long total = now_cycles() - c0;
+        venom_u32_fast_stats_t st = venom_u32_fast_stats_get();
         u32_profile_report("keygen", "sample_S", cyc_sample, total);
         u32_profile_report("keygen", "mul_A_times_S", cyc_mul, total);
         u32_profile_report("keygen", "quantize_pack_pk", cyc_quant_pack, total);
         u32_profile_report("keygen", "hash_pkh", cyc_hash, total);
+        u32_profile_report_counts("keygen", &st);
     }
     if (bench_verbose_enabled()) { fprintf(stderr, "[bench-u32] level=%d fn=keygen end keygen total %.3fs\n", PARAMS_N, now_s() - t0); }
     return 0;
@@ -253,6 +269,7 @@ int crypto_kem_enc(unsigned char *ct, unsigned char *ss, const unsigned char *pk
 
     bench_log("encaps", "start encaps multiplication-1");
     c1 = now_cycles();
+    venom_u32_fast_stats_reset();
     if (!venom_mul_add_sa_plus_e_u32(Bp_raw, Sp, E_zero, pk_seedA, &ws)) return 1;
     if (quantize_dithered_u32(Bp_split, Bp_raw, (size_t)PARAMS_NBAR * PARAMS_N, salt, BYTES_SALT, DITHER_DOMAIN_U, PARAMS_U_LOGP) != 0) return 1;
     venom_pack_u32(ct_c1, CT_C1_PACKED_BYTES, Bp_split, (size_t)PARAMS_NBAR * PARAMS_N, PARAMS_U_LOGP);
@@ -280,11 +297,13 @@ int crypto_kem_enc(unsigned char *ct, unsigned char *ss, const unsigned char *pk
 
     {
         unsigned long long total = now_cycles() - c0;
+        venom_u32_fast_stats_t st = venom_u32_fast_stats_get();
         u32_profile_report("encaps", "g2_and_sample_Sp", cyc_g2_sample, total);
         u32_profile_report("encaps", "mul_u_path", cyc_mul_u, total);
         u32_profile_report("encaps", "rebuild_pk", cyc_pk_rebuild, total);
         u32_profile_report("encaps", "mul_v_path", cyc_mul_v, total);
         u32_profile_report("encaps", "final_hash", cyc_misc, total);
+        u32_profile_report_counts("encaps", &st);
     }
     free(Arow); free(Arow_bytes);
     if (bench_verbose_enabled()) { fprintf(stderr, "[bench-u32] level=%d fn=encaps end encaps total %.3fs\n", PARAMS_N, now_s() - t0); }
@@ -357,6 +376,7 @@ int crypto_kem_dec(unsigned char *ss, const unsigned char *ct, const unsigned ch
     cyc_other += now_cycles() - c1;
     bench_log("decaps", "start decaps reencryption-1");
     c1 = now_cycles();
+    venom_u32_fast_stats_reset();
     if (!venom_mul_add_sa_plus_e_u32(BBp_raw, Sp, E_zero, pk_seedA, &ws)) return 1;
     if (quantize_dithered_u32(BBp_split, BBp_raw, (size_t)PARAMS_NBAR * PARAMS_N, salt, BYTES_SALT, DITHER_DOMAIN_U, PARAMS_U_LOGP) != 0) return 1;
     cyc_reenc_u += now_cycles() - c1;
@@ -381,11 +401,13 @@ int crypto_kem_dec(unsigned char *ss, const unsigned char *ct, const unsigned ch
     cyc_other += now_cycles() - c1;
     {
         unsigned long long total = now_cycles() - c0;
+        venom_u32_fast_stats_t st = venom_u32_fast_stats_get();
         u32_profile_report("decaps", "rebuild_ct", cyc_rebuild_ct, total);
         u32_profile_report("decaps", "mul_bp_times_s", cyc_mul_bs, total);
         u32_profile_report("decaps", "reenc_u_path", cyc_reenc_u, total);
         u32_profile_report("decaps", "reenc_v_path", cyc_reenc_v, total);
         u32_profile_report("decaps", "other_hash_verify", cyc_other, total);
+        u32_profile_report_counts("decaps", &st);
     }
     free(Arow); free(Arow_bytes);
     if (bench_verbose_enabled()) { fprintf(stderr, "[bench-u32] level=%d fn=decaps end decaps total %.3fs\n", PARAMS_N, now_s() - t0); }
