@@ -30,13 +30,28 @@ static inline unsigned long long mul_now_cycles(void)
 #ifndef VENOM_U32_CACHE_A
 #define VENOM_U32_CACHE_A 0
 #endif
+#ifndef VENOM_U32_A_WORD_BYTES
+#define VENOM_U32_A_WORD_BYTES 3
+#endif
+#if (VENOM_U32_A_WORD_BYTES != 3) && (VENOM_U32_A_WORD_BYTES != 4)
+#error "VENOM_U32_A_WORD_BYTES must be 3 or 4"
+#endif
+#define A_ROW_BYTES ((size_t)PARAMS_N * VENOM_U32_A_WORD_BYTES)
 
 static void expand_a_row_from_bytes(uint32_t *row, const uint8_t *row_bytes)
 {
+#if VENOM_U32_A_WORD_BYTES == 3
+    for (size_t j = 0; j < PARAMS_N; j++) {
+        const size_t p = 3 * j;
+        uint32_t v = (uint32_t)row_bytes[p] | ((uint32_t)row_bytes[p + 1] << 8) | ((uint32_t)row_bytes[p + 2] << 16);
+        row[j] = v & qmask_mul_u32();
+    }
+#else
     for (size_t j = 0; j < PARAMS_N; j++) {
         uint32_t v = (uint32_t)row_bytes[4*j] | ((uint32_t)row_bytes[4*j+1] << 8) | ((uint32_t)row_bytes[4*j+2] << 16) | ((uint32_t)row_bytes[4*j+3] << 24);
         row[j] = v & qmask_mul_u32();
     }
+#endif
 }
 
 static void expand_a_row(uint32_t *row, uint8_t *row_bytes, uint16_t row_idx, const uint8_t *seed_A)
@@ -45,7 +60,7 @@ static void expand_a_row(uint32_t *row, uint8_t *row_bytes, uint16_t row_idx, co
     memcpy(&in[2], seed_A, BYTES_SEED_A);
     in[0] = (uint8_t)(row_idx & 0xFF);
     in[1] = (uint8_t)((row_idx >> 8) & 0xFF);
-    shake128(row_bytes, (unsigned long long)PARAMS_N * 4, in, sizeof(in));
+    shake128(row_bytes, (unsigned long long)A_ROW_BYTES, in, sizeof(in));
     expand_a_row_from_bytes(row, row_bytes);
 }
 
@@ -63,19 +78,19 @@ static void expand_a_rows(uint32_t *rows, uint8_t *row_bytes, uint16_t row_idx, 
         in2[0] = (uint8_t)((row_idx + 2) & 0xFF);   in2[1] = (uint8_t)(((row_idx + 2) >> 8) & 0xFF);
         in3[0] = (uint8_t)((row_idx + 3) & 0xFF);   in3[1] = (uint8_t)(((row_idx + 3) >> 8) & 0xFF);
         shake128_4x(row_bytes,
-                    row_bytes + (size_t)PARAMS_N * 4,
-                    row_bytes + (size_t)PARAMS_N * 8,
-                    row_bytes + (size_t)PARAMS_N * 12,
-                    (unsigned long long)PARAMS_N * 4,
+                    row_bytes + A_ROW_BYTES,
+                    row_bytes + 2 * A_ROW_BYTES,
+                    row_bytes + 3 * A_ROW_BYTES,
+                    (unsigned long long)A_ROW_BYTES,
                     in0, in1, in2, in3, sizeof(in0));
         for (size_t r = 0; r < 4; r++) {
-            expand_a_row_from_bytes(rows + r * (size_t)PARAMS_N, row_bytes + r * (size_t)PARAMS_N * 4);
+            expand_a_row_from_bytes(rows + r * (size_t)PARAMS_N, row_bytes + r * A_ROW_BYTES);
         }
         return;
     }
 #endif
     for (size_t r = 0; r < count; r++) {
-        expand_a_row(rows + r * (size_t)PARAMS_N, row_bytes + r * (size_t)PARAMS_N * 4, (uint16_t)(row_idx + r), seed_A);
+        expand_a_row(rows + r * (size_t)PARAMS_N, row_bytes + r * A_ROW_BYTES, (uint16_t)(row_idx + r), seed_A);
     }
 }
 
@@ -88,7 +103,7 @@ int venom_mul_add_as_plus_e_u32(uint32_t *out, const int32_t *s, const uint32_t 
 #endif
     if (batch_rows > 4) batch_rows = 4;
     uint32_t *rows = (ws && ws->arow) ? ws->arow : (uint32_t *)malloc((size_t)PARAMS_N * 4 * sizeof(uint32_t));
-    uint8_t *row_bytes = (ws && ws->arow_bytes) ? ws->arow_bytes : (uint8_t *)malloc((size_t)PARAMS_N * 16);
+    uint8_t *row_bytes = (ws && ws->arow_bytes) ? ws->arow_bytes : (uint8_t *)malloc(4 * A_ROW_BYTES);
     int own = !(ws && ws->arow && ws->arow_bytes);
     if (!rows || !row_bytes) { if (own) { free(rows); free(row_bytes); } return 0; }
 
@@ -153,7 +168,7 @@ int venom_mul_add_sa_plus_e_u32(uint32_t *out, const int32_t *s, const uint32_t 
 #endif
     if (batch_rows > 4) batch_rows = 4;
     uint32_t *rows = (ws && ws->arow) ? ws->arow : (uint32_t *)malloc((size_t)PARAMS_N * 4 * sizeof(uint32_t));
-    uint8_t *row_bytes = (ws && ws->arow_bytes) ? ws->arow_bytes : (uint8_t *)malloc((size_t)PARAMS_N * 16);
+    uint8_t *row_bytes = (ws && ws->arow_bytes) ? ws->arow_bytes : (uint8_t *)malloc(4 * A_ROW_BYTES);
     int64_t *acc = (int64_t *)malloc((size_t)PARAMS_NBAR * PARAMS_N * sizeof(int64_t));
     int own = !(ws && ws->arow && ws->arow_bytes);
     if (!rows || !row_bytes || !acc) { if (own) { free(rows); free(row_bytes); } free(acc); return 0; }

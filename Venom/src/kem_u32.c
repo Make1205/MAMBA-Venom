@@ -13,6 +13,14 @@
 #define DITHER_DOMAIN_PK 0xA1
 #define DITHER_DOMAIN_U  0xB1
 #define DITHER_DOMAIN_V  0xC1
+#ifndef VENOM_U32_A_WORD_BYTES
+#define VENOM_U32_A_WORD_BYTES 3
+#endif
+#if (VENOM_U32_A_WORD_BYTES != 3) && (VENOM_U32_A_WORD_BYTES != 4)
+#error "VENOM_U32_A_WORD_BYTES must be 3 or 4"
+#endif
+#define AROW_BYTES ((size_t)PARAMS_N * 4)
+#define AROW_XOF_BYTES ((size_t)PARAMS_N * 4 * VENOM_U32_A_WORD_BYTES)
 
 #define PK_PACKED_BYTES ((PARAMS_PK_LOGP * PARAMS_N * PARAMS_NBAR) / 8)
 #define CT_C1_PACKED_BYTES ((PARAMS_U_LOGP * PARAMS_N * PARAMS_NBAR) / 8)
@@ -154,8 +162,8 @@ int crypto_kem_keypair(unsigned char* pk, unsigned char* sk)
     uint32_t *B_split = calloc((size_t)PARAMS_N * PARAMS_NBAR, sizeof(uint32_t));
     uint32_t *E_zero = calloc((size_t)PARAMS_N * PARAMS_NBAR, sizeof(uint32_t));
     int32_t *S = calloc((size_t)PARAMS_N * PARAMS_NBAR, sizeof(int32_t));
-    uint32_t *Arow = calloc((size_t)PARAMS_N * 4, sizeof(uint32_t));
-    uint8_t *Arow_bytes = calloc((size_t)PARAMS_N * 16, 1);
+    uint32_t *Arow = calloc(AROW_BYTES, sizeof(uint32_t));
+    uint8_t *Arow_bytes = calloc(AROW_XOF_BYTES, 1);
     venom_u32_workspace_t ws = { Arow, Arow_bytes, 4 };
     if (!B_raw || !B_split || !E_zero || !S || !Arow || !Arow_bytes) return 1;
 
@@ -220,8 +228,8 @@ int crypto_kem_enc(unsigned char *ct, unsigned char *ss, const unsigned char *pk
     uint32_t *E_zero = calloc((size_t)PARAMS_NBAR * PARAMS_N, sizeof(uint32_t));
     uint32_t *E_zero_nbar = calloc((size_t)PARAMS_NBAR * PARAMS_NBAR, sizeof(uint32_t));
     int32_t *Sp = calloc((size_t)PARAMS_NBAR * PARAMS_N, sizeof(int32_t));
-    uint32_t *Arow = calloc((size_t)PARAMS_N * 4, sizeof(uint32_t));
-    uint8_t *Arow_bytes = calloc((size_t)PARAMS_N * 16, 1);
+    uint32_t *Arow = calloc(AROW_BYTES, sizeof(uint32_t));
+    uint8_t *Arow_bytes = calloc(AROW_XOF_BYTES, 1);
     venom_u32_workspace_t ws = { Arow, Arow_bytes, 4 };
     uint8_t *mu = calloc(BYTES_MU, 1);
     uint8_t rnd_mu_salt[BYTES_MU + BYTES_SALT];
@@ -314,8 +322,8 @@ int crypto_kem_dec(unsigned char *ss, const unsigned char *ct, const unsigned ch
     uint32_t *E_zero_nbar = calloc((size_t)PARAMS_NBAR * PARAMS_NBAR, sizeof(uint32_t));
     int32_t *S = calloc((size_t)PARAMS_NBAR * PARAMS_N, sizeof(int32_t));
     int32_t *Sp = calloc((size_t)PARAMS_NBAR * PARAMS_N, sizeof(int32_t));
-    uint32_t *Arow = calloc((size_t)PARAMS_N * 4, sizeof(uint32_t));
-    uint8_t *Arow_bytes = calloc((size_t)PARAMS_N * 16, 1);
+    uint32_t *Arow = calloc(AROW_BYTES, sizeof(uint32_t));
+    uint8_t *Arow_bytes = calloc(AROW_XOF_BYTES, 1);
     venom_u32_workspace_t ws = { Arow, Arow_bytes, 4 };
     uint8_t *muprime = calloc(BYTES_MU, 1);
     uint8_t *G2in = calloc(BYTES_PKHASH + BYTES_MU + BYTES_SALT, 1);
