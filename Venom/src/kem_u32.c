@@ -6,6 +6,9 @@
 #include "venom_macrify.h"
 #include <stdio.h>
 #include <time.h>
+#if defined(__x86_64__) || defined(__i386__)
+#include <x86intrin.h>
+#endif
 
 #define DITHER_DOMAIN_PK 0xA1
 #define DITHER_DOMAIN_U  0xB1
@@ -39,6 +42,14 @@ static double now_s(void)
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts);
     return (double)ts.tv_sec + (double)ts.tv_nsec / 1e9;
+}
+static unsigned long long now_cycles(void)
+{
+#if defined(__x86_64__) || defined(__i386__)
+    return __rdtsc();
+#else
+    return (unsigned long long)(now_s() * 1e9);
+#endif
 }
 
 static int8_t ct_verify_u32(const uint32_t *a, const uint32_t *b, size_t len)
