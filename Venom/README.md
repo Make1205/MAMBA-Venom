@@ -41,12 +41,13 @@ The script will build and benchmark all five levels for:
 
 and write a CSV with per-operation timing/cycle summary.
 
-If you want to force AVX2 for Level-192/256 as well (experimental), run:
-
-```sh
-FORCE_L256_AVX2=1 ./scripts/bench_levels_ref_avx2.sh
-```
-
-For `Venom-384/512`, AVX2 builds currently fall back to the reference 32-bit backend.
 
 When a benchmark run crashes/fails, the script keeps running and writes a `run_failed` row with failure status in the CSV.
+
+Environment toggles for benchmark orchestration:
+
+- `RUN_REFERENCE=0|1` (default: `1`)
+- `RUN_AVX2=0|1` (default: `1`)
+- `ONLY_LEVEL=<128|192|256|384|512>`
+- `ONLY_MODE=<REFERENCE|AVX2>`
+- `PROFILE_U32=0|1` (enable u32 profile logs for level 384/512)

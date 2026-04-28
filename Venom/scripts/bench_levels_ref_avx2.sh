@@ -5,10 +5,12 @@ SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 VENOM_DIR=$(cd -- "${SCRIPT_DIR}/.." && pwd)
 OUT_CSV=${1:-"${VENOM_DIR}/bench_results_$(date -u +%Y%m%dT%H%M%SZ).csv"}
 
-ALL_MODES=(REFERENCE AVX2)
 ALL_LEVELS=(128 192 256 384 512)
 ONLY_MODE=${ONLY_MODE:-}
 ONLY_LEVEL=${ONLY_LEVEL:-}
+RUN_REFERENCE=${RUN_REFERENCE:-1}
+RUN_AVX2=${RUN_AVX2:-1}
+PROFILE_U32=${PROFILE_U32:-0}
 REPS=${REPS:-}
 
 get_level_env_default(){ local p="$1" l="$2" d="$3" ar="${4:-0}"; local v="${p}_${l}"; local val="${!v:-}"; if [[ "$ar" == "1" && -n "$REPS" ]]; then echo "$REPS"; elif [[ -n "$val" ]]; then echo "$val"; else echo "$d"; fi; }
@@ -31,38 +33,53 @@ query_sizes_from_api(){ local h; h="$(api_header_for_level "$1")"; cpp -dM -incl
 
 parse_cycles(){ awk '$1=="Key"&&$2=="generation"{ki=$3;k=(NF>=7?$(NF-1):"")}$1=="KEM"&&$2=="encapsulate"{ei=$3;e=(NF>=7?$(NF-1):"")}$1=="KEM"&&$2=="decapsulate"{di=$3;d=(NF>=7?$(NF-1):"")}END{tot="";if(k!=""&&e!=""&&d!="")tot=k+e+d;it=ki;if(ei>it)it=ei;if(di>it)it=di;printf "%s,%s,%s,%s,%s\n",k,e,d,tot,it}' "$1"; }
 
+notes_for_run(){
+  local mode="$1" level="$2"
+  if [[ "$level" == "384" || "$level" == "512" ]]; then
+    if [[ "$mode" == "REFERENCE" ]]; then
+      echo "u32"
+    else
+      echo "u32_full"
+    fi
+  else
+    echo "u16"
+  fi
+}
+
+modes=()
+if [[ -n "$ONLY_MODE" ]]; then
+  modes=("$ONLY_MODE")
+else
+  [[ "$RUN_REFERENCE" == "1" ]] && modes+=("REFERENCE")
+  [[ "$RUN_AVX2" == "1" ]] && modes+=("AVX2")
+fi
+if [[ ${#modes[@]} -eq 0 ]]; then
+  echo "[error] no benchmark mode enabled (RUN_REFERENCE/RUN_AVX2 are both 0)"
+  exit 1
+fi
+
+levels=("${ALL_LEVELS[@]}")
+[[ -n "$ONLY_LEVEL" ]] && levels=("$ONLY_LEVEL")
+
 printf 'scheme,level,mode,backend,keygen_cycles,encaps_cycles,decaps_cycles,total_cycles,pk_bytes,ct_bytes,sk_bytes,ss_bytes,iterations,status,notes\n' > "$OUT_CSV"
 echo "[info] Output CSV: $OUT_CSV"
-echo "[info] Running benchmarks for OPT_LEVEL=REFERENCE and AVX2."
-echo "[info] FORCE_L256_AVX2=${FORCE_L256_AVX2:-0}: using default stable code path for Level-192/256."
+echo "[info] Running benchmarks for modes: ${modes[*]}"
 
-modes=("${ALL_MODES[@]}"); levels=("${ALL_LEVELS[@]}")
-[[ -n "$ONLY_MODE" ]] && modes=("$ONLY_MODE")
-[[ -n "$ONLY_LEVEL" ]] && levels=("$ONLY_LEVEL")
+echo "[info] PROFILE_U32=$PROFILE_U32"
 
 for mode in "${modes[@]}"; do
   echo "[info] ===== Building mode: $mode ====="
   make -C "$VENOM_DIR" clean >/dev/null
-  if [[ "$mode" == "REFERENCE" ]]; then make -C "$VENOM_DIR" OPT_LEVEL=REFERENCE tests >/dev/null; else
-    if [[ "${FORCE_L256_AVX2:-0}" == "1" ]]; then make -C "$VENOM_DIR" OPT_LEVEL=FAST EXTRA_CFLAGS="-O3 -DFORCE_USE_AVX2_FOR_L256" tests >/dev/null; else make -C "$VENOM_DIR" OPT_LEVEL=FAST tests >/dev/null; fi
+  if [[ "$mode" == "REFERENCE" ]]; then
+    make -C "$VENOM_DIR" OPT_LEVEL=REFERENCE tests >/dev/null
+  else
+    make -C "$VENOM_DIR" OPT_LEVEL=FAST tests >/dev/null
   fi
 
   for level in "${levels[@]}"; do
     bin=$(level_bin "$level"); timeout_s=$(get_timeout_secs "$level"); correct_iters=$(get_correct_iters "$level"); bench_seconds=$(get_bench_seconds "$level")
-    backend="ref"; notes=""
-    [[ "$level" == "384" || "$level" == "512" ]] && backend="ref_u32"
-    if [[ "$mode" == "AVX2" ]]; then
-      backend="avx2"
-      if [[ "$level" == "384" || "$level" == "512" ]]; then
-        if [[ "${FORCE_U32_REF:-0}" == "1" ]]; then
-          backend="avx2_fallback_ref_u32"; notes="avx2_fallback_ref_u32"
-          echo "[info] Venom-${level} AVX2 path: forced fallback to ref-u32 (FORCE_U32_REF=1)"
-        else
-          backend="avx2_u32_full"; notes="avx2_u32_full"
-          echo "[info] Venom-${level} AVX2 path: u32 AVX2 backend enabled"
-        fi
-      fi
-    fi
+    backend="$( [[ "$mode" == "REFERENCE" ]] && echo "ref" || echo "avx2" )"
+    notes="$(notes_for_run "$mode" "$level")"
 
     echo "[param-check] level=$level $(level_params "$level")"
     IFS=',' read -r pkb ctb skb ssb <<< "$(query_sizes_from_api "$level")"
@@ -77,7 +94,7 @@ for mode in "${modes[@]}"; do
     echo "[info] Running mode=$mode, level=$level, correctness=$correct_iters, bench_seconds=$bench_seconds, timeout=${timeout_s}s"
     tmp_log=$(mktemp)
     set +e
-    timeout "$timeout_s" env VENOM_KEM_TEST_ITERATIONS="$correct_iters" VENOM_KEM_BENCH_SECONDS="$bench_seconds" BENCH_VERBOSE="${BENCH_VERBOSE:-0}" DEBUG_BENCH="${DEBUG_BENCH:-0}" "$VENOM_DIR/$bin" >"$tmp_log" 2>&1
+    timeout "$timeout_s" env PROFILE_U32="$PROFILE_U32" VENOM_KEM_TEST_ITERATIONS="$correct_iters" VENOM_KEM_BENCH_SECONDS="$bench_seconds" BENCH_VERBOSE="${BENCH_VERBOSE:-0}" DEBUG_BENCH="${DEBUG_BENCH:-0}" "$VENOM_DIR/$bin" >"$tmp_log" 2>&1
     rc=$?
     set -e
 
