@@ -14,11 +14,19 @@ Optimized_Implementation:
 - Venom-384 (pending)
 - Venom-512 (pending)
 
+Original template directory retained:
+- Reference_Implementation/AlgorithmInstance (kept unchanged for compatibility)
+
 Per-directory build + KAT commands (example):
 cd API_PKC/Implementations/Reference_Implementation/Venom-128 && make clean && make && make KAT && ./KAT_KEM && make clean
 cd API_PKC/Implementations/Reference_Implementation/Venom-192 && make clean && make && make KAT && ./KAT_KEM && make clean
 cd API_PKC/Implementations/Reference_Implementation/Venom-256 && make clean && make && make KAT && ./KAT_KEM && make clean
 cd API_PKC/Implementations/Reference_Implementation/Venom-384 && make clean && make && make KAT && ./KAT_KEM && make clean
 cd API_PKC/Implementations/Reference_Implementation/Venom-512 && make clean && make && make KAT && ./KAT_KEM && make clean
+
+Notes:
+- API_PKC auxiliary files are included in each Venom Reference directory.
+- Venom internal SHAKE/XOF path has not yet been fully routed through auxfunc wrappers.
+  This is deferred to a later migration step.
 
 Final submission root is API_PKC/.

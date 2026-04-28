@@ -7,3 +7,8 @@ Final deliverable directory: API_PKC/
 Current stage:
 - Reference_Implementation: Venom-128/192/256/384/512 completed.
 - Optimized_Implementation: placeholders only, pending next stage.
+
+Template preservation note:
+- Original API_PKC template files/directories are preserved (including
+  Implementations/Reference_Implementation/AlgorithmInstance and Test_Vector).
+- Venom migration files are added on top of the original template structure.

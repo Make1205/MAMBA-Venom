@@ -7,3 +7,7 @@ output/KAT_KEM_Venom-512.txt
 
 After generation, copy into API_PKC/Test_Vectors/ for packaging.
 Generated KAT files are not committed in this repository stage.
+
+Note:
+- Original template directory API_PKC/Test_Vector is preserved unchanged.
+- API_PKC/Test_Vectors is the Venom migration output-collection location.
