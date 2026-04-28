@@ -20,6 +20,10 @@
 #define PK_PACKED_BYTES ((PARAMS_PK_LOGP * PARAMS_N * PARAMS_NBAR) / 8)
 #define CT_C1_PACKED_BYTES ((PARAMS_U_LOGP * PARAMS_N * PARAMS_NBAR) / 8)
 #define CT_C2_PACKED_BYTES ((PARAMS_V_LOGP * PARAMS_NBAR * PARAMS_NBAR) / 8)
+#define SK_OFFSET_S 0
+#define SK_OFFSET_PK (SK_OFFSET_S + CRYPTO_BYTES)
+#define SK_OFFSET_SEEDSE (SK_OFFSET_PK + CRYPTO_PUBLICKEYBYTES)
+#define SK_OFFSET_PKH (SK_OFFSET_SEEDSE + BYTES_SEED_SE)
 
 static inline uint16_t frodo_q_mask_local(void)
 {
@@ -105,10 +109,10 @@ int crypto_kem_keypair(unsigned char* pk, unsigned char* sk)
 { // FrodoKEM's key generation with public dithered quantization
     uint8_t *pk_seedA = &pk[0];
     uint8_t *pk_b = &pk[BYTES_SEED_A];
-    uint8_t *sk_s = &sk[0];
-    uint8_t *sk_pk = &sk[CRYPTO_BYTES];
-    uint8_t *sk_S = &sk[CRYPTO_BYTES + CRYPTO_PUBLICKEYBYTES];
-    uint8_t *sk_pkh = &sk[CRYPTO_BYTES + CRYPTO_PUBLICKEYBYTES + 2*PARAMS_N*PARAMS_NBAR];
+    uint8_t *sk_s = &sk[SK_OFFSET_S];
+    uint8_t *sk_pk = &sk[SK_OFFSET_PK];
+    uint8_t *sk_seedSE = &sk[SK_OFFSET_SEEDSE];
+    uint8_t *sk_pkh = &sk[SK_OFFSET_PKH];
     uint16_t B_raw[PARAMS_N*PARAMS_NBAR] = {0};
     uint16_t B_split[PARAMS_N*PARAMS_NBAR] = {0};
     uint16_t S[PARAMS_N*PARAMS_NBAR] = {0};                          // contains secret data
@@ -145,12 +149,10 @@ int crypto_kem_keypair(unsigned char* pk, unsigned char* sk)
 
     frodo_pack(pk_b, PK_PACKED_BYTES, B_split, PARAMS_N*PARAMS_NBAR, PARAMS_PK_LOGP);
 
+    memset(sk, 0, CRYPTO_SECRETKEYBYTES);
     memcpy(sk_s, randomness_s, CRYPTO_BYTES);
     memcpy(sk_pk, pk, CRYPTO_PUBLICKEYBYTES);
-    for (size_t i = 0; i < PARAMS_N * PARAMS_NBAR; i++) {
-        S[i] = UINT16_TO_LE(S[i]);
-    }
-    memcpy(sk_S, S, 2*PARAMS_N*PARAMS_NBAR);
+    memcpy(sk_seedSE, randomness_seedSE, BYTES_SEED_SE);
 
     shake(sk_pkh, BYTES_PKHASH, pk, CRYPTO_PUBLICKEYBYTES);
 
@@ -276,9 +278,9 @@ int crypto_kem_dec(unsigned char *ss, const unsigned char *ct, const unsigned ch
     const uint8_t *salt = &ct[CRYPTO_CIPHERTEXTBYTES - BYTES_SALT];
     const uint8_t *sk_s = &sk[0];
     const uint8_t *sk_pk = &sk[CRYPTO_BYTES];
-    const uint16_t *sk_S = (uint16_t *) &sk[CRYPTO_BYTES + CRYPTO_PUBLICKEYBYTES];
+    const uint8_t *sk_seedSE = &sk[SK_OFFSET_SEEDSE];
     uint16_t S[PARAMS_N * PARAMS_NBAR];                               // contains secret data
-    const uint8_t *sk_pkh = &sk[CRYPTO_BYTES + CRYPTO_PUBLICKEYBYTES + 2*PARAMS_N*PARAMS_NBAR];
+    const uint8_t *sk_pkh = &sk[SK_OFFSET_PKH];
     const uint8_t *pk_seedA = &sk_pk[0];
     const uint8_t *pk_b = &sk_pk[BYTES_SEED_A];
     uint8_t G2in[BYTES_PKHASH + BYTES_MU + BYTES_SALT];               // contains secret data via muprime
@@ -299,9 +301,14 @@ int crypto_kem_dec(unsigned char *ss, const unsigned char *ct, const unsigned ch
     VALGRIND_MAKE_MEM_UNDEFINED(ct, CRYPTO_CIPHERTEXTBYTES);
 #endif
 
+    uint8_t shake_input_seedSE[1 + BYTES_SEED_SE];
+    shake_input_seedSE[0] = 0x5F;
+    memcpy(&shake_input_seedSE[1], sk_seedSE, BYTES_SEED_SE);
+    shake((uint8_t*)S, PARAMS_N*PARAMS_NBAR*sizeof(uint16_t), shake_input_seedSE, 1 + BYTES_SEED_SE);
     for (size_t i = 0; i < PARAMS_N * PARAMS_NBAR; i++) {
-        S[i] = LE_TO_UINT16(sk_S[i]);
+        S[i] = LE_TO_UINT16(S[i]);
     }
+    frodo_sample_n(S, PARAMS_N*PARAMS_NBAR);
 
     frodo_unpack(Bp_split, PARAMS_N*PARAMS_NBAR, ct_c1, CT_C1_PACKED_BYTES, PARAMS_U_LOGP);
     frodo_unpack(C_split, PARAMS_NBAR*PARAMS_NBAR, ct_c2, CT_C2_PACKED_BYTES, PARAMS_V_LOGP);
