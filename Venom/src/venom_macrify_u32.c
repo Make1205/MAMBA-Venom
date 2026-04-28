@@ -43,6 +43,9 @@ static inline unsigned long long mul_now_cycles(void)
 #ifndef VENOM_U32_MUL_BS_PREPACK
 #define VENOM_U32_MUL_BS_PREPACK 0
 #endif
+#ifndef VENOM_U32_J_BLOCK
+#define VENOM_U32_J_BLOCK 2
+#endif
 #define A_ROW_BYTES ((size_t)PARAMS_N * VENOM_U32_A_WORD_BYTES)
 static venom_u32_fast_stats_t g_u32_fast_stats = {0};
 static size_t g_active_batch_rows = 1;
@@ -148,6 +151,81 @@ static inline void expandA_rows_u32_fast(uint32_t *rows, uint8_t *row_bytes, uin
     for (size_t r = 0; r < count; r++) {
         expandA_row_u32_fast(rows + r * (size_t)PARAMS_N, row_bytes + r * A_ROW_BYTES, (uint16_t)(row_idx + r), seed_A);
     }
+}
+
+static inline void expandA_rows_u32_block_transposed(uint32_t *ablock, uint8_t *row_bytes, uint16_t row_idx, size_t count, const uint8_t *seed_A)
+{
+#if defined(USE_AVX2_U32)
+    size_t gen = 0;
+    while (gen + 4 <= count) {
+        uint8_t in0[2 + BYTES_SEED_A], in1[2 + BYTES_SEED_A], in2[2 + BYTES_SEED_A], in3[2 + BYTES_SEED_A];
+        memcpy(&in0[2], seed_A, BYTES_SEED_A);
+        memcpy(&in1[2], seed_A, BYTES_SEED_A);
+        memcpy(&in2[2], seed_A, BYTES_SEED_A);
+        memcpy(&in3[2], seed_A, BYTES_SEED_A);
+        in0[0] = (uint8_t)((row_idx + gen + 0) & 0xFF); in0[1] = (uint8_t)(((row_idx + gen + 0) >> 8) & 0xFF);
+        in1[0] = (uint8_t)((row_idx + gen + 1) & 0xFF); in1[1] = (uint8_t)(((row_idx + gen + 1) >> 8) & 0xFF);
+        in2[0] = (uint8_t)((row_idx + gen + 2) & 0xFF); in2[1] = (uint8_t)(((row_idx + gen + 2) >> 8) & 0xFF);
+        in3[0] = (uint8_t)((row_idx + gen + 3) & 0xFF); in3[1] = (uint8_t)(((row_idx + gen + 3) >> 8) & 0xFF);
+        shake128_4x(row_bytes + (gen + 0) * A_ROW_BYTES,
+                    row_bytes + (gen + 1) * A_ROW_BYTES,
+                    row_bytes + (gen + 2) * A_ROW_BYTES,
+                    row_bytes + (gen + 3) * A_ROW_BYTES,
+                    (unsigned long long)A_ROW_BYTES,
+                    in0, in1, in2, in3, sizeof(in0));
+        g_u32_fast_stats.expand_row_calls += 4;
+        g_u32_fast_stats.shake_init_calls += 1;
+        g_u32_fast_stats.shake_squeeze_calls += 1;
+        g_u32_fast_stats.bytes_squeezed_for_a += 4 * A_ROW_BYTES;
+        g_u32_fast_stats.shake4x_used = 1;
+        gen += 4;
+    }
+    for (; gen < count; gen++) {
+        uint8_t in[2 + BYTES_SEED_A];
+        memcpy(&in[2], seed_A, BYTES_SEED_A);
+        in[0] = (uint8_t)((row_idx + gen) & 0xFF);
+        in[1] = (uint8_t)(((row_idx + gen) >> 8) & 0xFF);
+        shake128(row_bytes + gen * A_ROW_BYTES, (unsigned long long)A_ROW_BYTES, in, sizeof(in));
+        g_u32_fast_stats.expand_row_calls += 1;
+        g_u32_fast_stats.shake_init_calls += 1;
+        g_u32_fast_stats.shake_squeeze_calls += 1;
+        g_u32_fast_stats.bytes_squeezed_for_a += A_ROW_BYTES;
+    }
+#else
+    for (size_t gen = 0; gen < count; gen++) {
+        uint8_t in[2 + BYTES_SEED_A];
+        memcpy(&in[2], seed_A, BYTES_SEED_A);
+        in[0] = (uint8_t)((row_idx + gen) & 0xFF);
+        in[1] = (uint8_t)(((row_idx + gen) >> 8) & 0xFF);
+        shake128(row_bytes + gen * A_ROW_BYTES, (unsigned long long)A_ROW_BYTES, in, sizeof(in));
+        g_u32_fast_stats.expand_row_calls += 1;
+        g_u32_fast_stats.shake_init_calls += 1;
+        g_u32_fast_stats.shake_squeeze_calls += 1;
+        g_u32_fast_stats.bytes_squeezed_for_a += A_ROW_BYTES;
+    }
+#endif
+
+    for (size_t j = 0; j < (size_t)PARAMS_N; j++) {
+        for (size_t b = 0; b < count; b++) {
+#if VENOM_U32_A_WORD_BYTES == 3
+            const uint8_t *p = row_bytes + b * A_ROW_BYTES + 3 * j;
+            uint32_t v = (uint32_t)p[0] | ((uint32_t)p[1] << 8) | ((uint32_t)p[2] << 16);
+#else
+            const uint8_t *p = row_bytes + b * A_ROW_BYTES + 4 * j;
+            uint32_t v = (uint32_t)p[0] | ((uint32_t)p[1] << 8) | ((uint32_t)p[2] << 16) | ((uint32_t)p[3] << 24);
+#endif
+            ablock[j * count + b] = v & qmask_mul_u32();
+        }
+    }
+}
+
+static inline size_t j_block_cols_u32(void)
+{
+    const char *p = getenv("VENOM_U32_J_BLOCK");
+    if (p == NULL || *p == '\0') return VENOM_U32_J_BLOCK;
+    long v = strtol(p, NULL, 10);
+    if (v == 1 || v == 2 || v == 4) return (size_t)v;
+    return VENOM_U32_J_BLOCK;
 }
 
 #if defined(USE_AVX2_U32)
@@ -265,6 +343,10 @@ static int mul_A_times_S_u32_fast(uint32_t *out, const int32_t *s, const uint32_
 static int mul_AT_times_R_u32_fast(uint32_t *out, const int32_t *s, const uint32_t *e, const uint8_t *seed_A, venom_u32_workspace_t *ws)
 {
     unsigned long long c0 = mul_now_cycles(), c_expand = 0, c_mac = 0, c_out = 0, c1;
+    size_t jblk = j_block_cols_u32();
+#if !defined(USE_AVX2_U32)
+    jblk = 1;
+#endif
     size_t batch_rows = 1;
 #if defined(USE_AVX2_U32)
     batch_rows = (ws && ws->row_count > 0) ? ws->row_count : 4;
@@ -272,11 +354,11 @@ static int mul_AT_times_R_u32_fast(uint32_t *out, const int32_t *s, const uint32
     if (batch_rows > 16) batch_rows = 16;
     g_active_batch_rows = batch_rows;
     u32_stats_set_modes();
-    uint32_t *rows = (ws && ws->arow) ? ws->arow : (uint32_t *)malloc((size_t)PARAMS_N * batch_rows * sizeof(uint32_t));
+    uint32_t *ablock = (ws && ws->arow) ? ws->arow : (uint32_t *)malloc((size_t)PARAMS_N * batch_rows * sizeof(uint32_t));
     uint8_t *row_bytes = (ws && ws->arow_bytes) ? ws->arow_bytes : (uint8_t *)malloc(batch_rows * A_ROW_BYTES);
     uint32_t *acc = (uint32_t *)malloc((size_t)PARAMS_N * PARAMS_NBAR * sizeof(uint32_t));
     int own = !(ws && ws->arow && ws->arow_bytes);
-    if (!rows || !row_bytes || !acc) { if (own) { free(rows); free(row_bytes); } free(acc); return 0; }
+    if (!ablock || !row_bytes || !acc) { if (own) { free(ablock); free(row_bytes); } free(acc); return 0; }
 
     for (size_t j = 0; j < PARAMS_N; j++) {
         for (size_t k = 0; k < PARAMS_NBAR; k++) {
@@ -286,27 +368,51 @@ static int mul_AT_times_R_u32_fast(uint32_t *out, const int32_t *s, const uint32
     for (size_t i0 = 0; i0 < (size_t)PARAMS_N; i0 += batch_rows) {
         size_t cnt = ((size_t)PARAMS_N - i0 >= batch_rows) ? batch_rows : ((size_t)PARAMS_N - i0);
         c1 = mul_now_cycles();
-        expandA_rows_u32_fast(rows, row_bytes, (uint16_t)i0, cnt, seed_A);
+        expandA_rows_u32_block_transposed(ablock, row_bytes, (uint16_t)i0, cnt, seed_A);
         c_expand += mul_now_cycles() - c1;
         c1 = mul_now_cycles();
-        for (size_t q = 0; q < (size_t)PARAMS_N; q++) {
+        __m256i rvec[16];
+        for (size_t b = 0; b < cnt; b++) {
+            const size_t i = i0 + b;
+            rvec[b] = _mm256_set_epi32(
+                s[7*(size_t)PARAMS_N + i], s[6*(size_t)PARAMS_N + i], s[5*(size_t)PARAMS_N + i], s[4*(size_t)PARAMS_N + i],
+                s[3*(size_t)PARAMS_N + i], s[2*(size_t)PARAMS_N + i], s[1*(size_t)PARAMS_N + i], s[0*(size_t)PARAMS_N + i]
+            );
+        }
+        for (size_t q = 0; q < (size_t)PARAMS_N; q += jblk) {
+            size_t jb = ((size_t)PARAMS_N - q >= jblk) ? jblk : ((size_t)PARAMS_N - q);
 #if defined(USE_AVX2_U32)
-            __m256i u = _mm256_loadu_si256((const __m256i *)(acc + q*(size_t)PARAMS_NBAR));
+            __m256i u0 = _mm256_loadu_si256((const __m256i *)(acc + (q + 0)*(size_t)PARAMS_NBAR));
+            __m256i u1 = _mm256_setzero_si256(), u2 = _mm256_setzero_si256(), u3 = _mm256_setzero_si256();
+            if (jb > 1) u1 = _mm256_loadu_si256((const __m256i *)(acc + (q + 1)*(size_t)PARAMS_NBAR));
+            if (jb > 2) u2 = _mm256_loadu_si256((const __m256i *)(acc + (q + 2)*(size_t)PARAMS_NBAR));
+            if (jb > 3) u3 = _mm256_loadu_si256((const __m256i *)(acc + (q + 3)*(size_t)PARAMS_NBAR));
             for (size_t b = 0; b < cnt; b++) {
-                const size_t i = i0 + b;
-                __m256i r = _mm256_set_epi32(
-                    s[7*(size_t)PARAMS_N + i], s[6*(size_t)PARAMS_N + i], s[5*(size_t)PARAMS_N + i], s[4*(size_t)PARAMS_N + i],
-                    s[3*(size_t)PARAMS_N + i], s[2*(size_t)PARAMS_N + i], s[1*(size_t)PARAMS_N + i], s[0*(size_t)PARAMS_N + i]
-                );
-                __m256i a = _mm256_set1_epi32((int32_t)rows[b*(size_t)PARAMS_N + q]);
-                u = _mm256_add_epi32(u, _mm256_mullo_epi32(a, r));
+                __m256i r = rvec[b];
+                __m256i a0 = _mm256_set1_epi32((int32_t)ablock[(q + 0) * cnt + b]);
+                u0 = _mm256_add_epi32(u0, _mm256_mullo_epi32(a0, r));
+                if (jb > 1) {
+                    __m256i a1 = _mm256_set1_epi32((int32_t)ablock[(q + 1) * cnt + b]);
+                    u1 = _mm256_add_epi32(u1, _mm256_mullo_epi32(a1, r));
+                }
+                if (jb > 2) {
+                    __m256i a2 = _mm256_set1_epi32((int32_t)ablock[(q + 2) * cnt + b]);
+                    u2 = _mm256_add_epi32(u2, _mm256_mullo_epi32(a2, r));
+                }
+                if (jb > 3) {
+                    __m256i a3 = _mm256_set1_epi32((int32_t)ablock[(q + 3) * cnt + b]);
+                    u3 = _mm256_add_epi32(u3, _mm256_mullo_epi32(a3, r));
+                }
             }
-            _mm256_storeu_si256((__m256i *)(acc + q*(size_t)PARAMS_NBAR), u);
+            _mm256_storeu_si256((__m256i *)(acc + (q + 0)*(size_t)PARAMS_NBAR), u0);
+            if (jb > 1) _mm256_storeu_si256((__m256i *)(acc + (q + 1)*(size_t)PARAMS_NBAR), u1);
+            if (jb > 2) _mm256_storeu_si256((__m256i *)(acc + (q + 2)*(size_t)PARAMS_NBAR), u2);
+            if (jb > 3) _mm256_storeu_si256((__m256i *)(acc + (q + 3)*(size_t)PARAMS_NBAR), u3);
 #else
             uint32_t *uq = acc + q*(size_t)PARAMS_NBAR;
             for (size_t b = 0; b < cnt; b++) {
                 const size_t i = i0 + b;
-                uint32_t a = rows[b*(size_t)PARAMS_N + q];
+                uint32_t a = ablock[q * cnt + b];
                 uq[0] += a * (uint32_t)s[0*(size_t)PARAMS_N + i];
                 uq[1] += a * (uint32_t)s[1*(size_t)PARAMS_N + i];
                 uq[2] += a * (uint32_t)s[2*(size_t)PARAMS_N + i];
@@ -330,7 +436,7 @@ static int mul_AT_times_R_u32_fast(uint32_t *out, const int32_t *s, const uint32
     }
     c_out += mul_now_cycles() - c1;
     clear_bytes((uint8_t *)acc, (size_t)PARAMS_NBAR * PARAMS_N * sizeof(uint32_t));
-    if (own) { free(rows); free(row_bytes); }
+    if (own) { free(ablock); free(row_bytes); }
     free(acc);
     if (u32_profile_enabled_mul()) {
         unsigned long long total = mul_now_cycles() - c0;
