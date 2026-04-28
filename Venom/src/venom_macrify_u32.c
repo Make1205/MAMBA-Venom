@@ -371,13 +371,17 @@ static int mul_AT_times_R_u32_fast(uint32_t *out, const int32_t *s, const uint32
         expandA_rows_u32_block_transposed(ablock, row_bytes, (uint16_t)i0, cnt, seed_A);
         c_expand += mul_now_cycles() - c1;
         c1 = mul_now_cycles();
+#if defined(USE_AVX2_U32)
         __m256i rvec[16];
+#endif
         for (size_t b = 0; b < cnt; b++) {
             const size_t i = i0 + b;
+#if defined(USE_AVX2_U32)
             rvec[b] = _mm256_set_epi32(
                 s[7*(size_t)PARAMS_N + i], s[6*(size_t)PARAMS_N + i], s[5*(size_t)PARAMS_N + i], s[4*(size_t)PARAMS_N + i],
                 s[3*(size_t)PARAMS_N + i], s[2*(size_t)PARAMS_N + i], s[1*(size_t)PARAMS_N + i], s[0*(size_t)PARAMS_N + i]
             );
+#endif
         }
         for (size_t q = 0; q < (size_t)PARAMS_N; q += jblk) {
             size_t jb = ((size_t)PARAMS_N - q >= jblk) ? jblk : ((size_t)PARAMS_N - q);

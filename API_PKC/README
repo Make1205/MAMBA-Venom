@@ -1,0 +1,9 @@
+API_PKC submission package for MAMBA-Venom KEM.
+
+Final deliverable directory: API_PKC/
+- Implementations/
+- Test_Vectors/
+
+Current stage:
+- Reference_Implementation: Venom-128/192/256/384/512 completed.
+- Optimized_Implementation: placeholders only, pending next stage.

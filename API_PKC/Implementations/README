@@ -1,0 +1,24 @@
+API_PKC Implementations layout
+
+Reference_Implementation (completed in this stage):
+- Venom-128
+- Venom-192
+- Venom-256
+- Venom-384
+- Venom-512
+
+Optimized_Implementation:
+- Venom-128 (pending)
+- Venom-192 (pending)
+- Venom-256 (pending)
+- Venom-384 (pending)
+- Venom-512 (pending)
+
+Per-directory build + KAT commands (example):
+cd API_PKC/Implementations/Reference_Implementation/Venom-128 && make clean && make && make KAT && ./KAT_KEM && make clean
+cd API_PKC/Implementations/Reference_Implementation/Venom-192 && make clean && make && make KAT && ./KAT_KEM && make clean
+cd API_PKC/Implementations/Reference_Implementation/Venom-256 && make clean && make && make KAT && ./KAT_KEM && make clean
+cd API_PKC/Implementations/Reference_Implementation/Venom-384 && make clean && make && make KAT && ./KAT_KEM && make clean
+cd API_PKC/Implementations/Reference_Implementation/Venom-512 && make clean && make && make KAT && ./KAT_KEM && make clean
+
+Final submission root is API_PKC/.

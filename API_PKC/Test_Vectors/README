@@ -1,0 +1,9 @@
+API_PKC KAT files are generated per parameter set by KAT_KEM executable:
+output/KAT_KEM_Venom-128.txt
+output/KAT_KEM_Venom-192.txt
+output/KAT_KEM_Venom-256.txt
+output/KAT_KEM_Venom-384.txt
+output/KAT_KEM_Venom-512.txt
+
+After generation, copy into API_PKC/Test_Vectors/ for packaging.
+Generated KAT files are not committed in this repository stage.
