@@ -271,50 +271,49 @@ static int mul_AT_times_R_u32_fast(uint32_t *out, const int32_t *s, const uint32
     u32_stats_set_modes();
     uint32_t *rows = (ws && ws->arow) ? ws->arow : (uint32_t *)malloc((size_t)PARAMS_N * batch_rows * sizeof(uint32_t));
     uint8_t *row_bytes = (ws && ws->arow_bytes) ? ws->arow_bytes : (uint8_t *)malloc(batch_rows * A_ROW_BYTES);
-    int64_t *acc = (int64_t *)malloc((size_t)PARAMS_NBAR * PARAMS_N * sizeof(int64_t));
+    uint32_t *acc = (uint32_t *)malloc((size_t)PARAMS_N * PARAMS_NBAR * sizeof(uint32_t));
     int own = !(ws && ws->arow && ws->arow_bytes);
     if (!rows || !row_bytes || !acc) { if (own) { free(rows); free(row_bytes); } free(acc); return 0; }
 
-    for (size_t k = 0; k < PARAMS_NBAR; k++) {
-        for (size_t i = 0; i < PARAMS_N; i++) {
-            acc[k*PARAMS_N + i] = e[k*PARAMS_N + i];
+    for (size_t j = 0; j < PARAMS_N; j++) {
+        for (size_t k = 0; k < PARAMS_NBAR; k++) {
+            acc[j*(size_t)PARAMS_NBAR + k] = e[k*(size_t)PARAMS_N + j];
         }
     }
-    for (size_t i = 0; i < (size_t)PARAMS_N; i++) {
-        if ((i % batch_rows) == 0) {
-            size_t cnt = ((size_t)PARAMS_N - i >= batch_rows) ? batch_rows : ((size_t)PARAMS_N - i);
-            c1 = mul_now_cycles();
-            expandA_rows_u32_fast(rows, row_bytes, (uint16_t)i, cnt, seed_A);
-            c_expand += mul_now_cycles() - c1;
-        }
-        const uint32_t *row = rows + (i % batch_rows) * (size_t)PARAMS_N;
+    for (size_t i0 = 0; i0 < (size_t)PARAMS_N; i0 += batch_rows) {
+        size_t cnt = ((size_t)PARAMS_N - i0 >= batch_rows) ? batch_rows : ((size_t)PARAMS_N - i0);
         c1 = mul_now_cycles();
-        int64_t si0 = s[0*(size_t)PARAMS_N + i];
-        int64_t si1 = s[1*(size_t)PARAMS_N + i];
-        int64_t si2 = s[2*(size_t)PARAMS_N + i];
-        int64_t si3 = s[3*(size_t)PARAMS_N + i];
-        int64_t si4 = s[4*(size_t)PARAMS_N + i];
-        int64_t si5 = s[5*(size_t)PARAMS_N + i];
-        int64_t si6 = s[6*(size_t)PARAMS_N + i];
-        int64_t si7 = s[7*(size_t)PARAMS_N + i];
-        int64_t *a0 = acc + 0*(size_t)PARAMS_N;
-        int64_t *a1 = acc + 1*(size_t)PARAMS_N;
-        int64_t *a2 = acc + 2*(size_t)PARAMS_N;
-        int64_t *a3 = acc + 3*(size_t)PARAMS_N;
-        int64_t *a4 = acc + 4*(size_t)PARAMS_N;
-        int64_t *a5 = acc + 5*(size_t)PARAMS_N;
-        int64_t *a6 = acc + 6*(size_t)PARAMS_N;
-        int64_t *a7 = acc + 7*(size_t)PARAMS_N;
+        expandA_rows_u32_fast(rows, row_bytes, (uint16_t)i0, cnt, seed_A);
+        c_expand += mul_now_cycles() - c1;
+        c1 = mul_now_cycles();
         for (size_t q = 0; q < (size_t)PARAMS_N; q++) {
-            int64_t a = (int64_t)row[q];
-            a0[q] += si0 * a;
-            a1[q] += si1 * a;
-            a2[q] += si2 * a;
-            a3[q] += si3 * a;
-            a4[q] += si4 * a;
-            a5[q] += si5 * a;
-            a6[q] += si6 * a;
-            a7[q] += si7 * a;
+#if defined(USE_AVX2_U32)
+            __m256i u = _mm256_loadu_si256((const __m256i *)(acc + q*(size_t)PARAMS_NBAR));
+            for (size_t b = 0; b < cnt; b++) {
+                const size_t i = i0 + b;
+                __m256i r = _mm256_set_epi32(
+                    s[7*(size_t)PARAMS_N + i], s[6*(size_t)PARAMS_N + i], s[5*(size_t)PARAMS_N + i], s[4*(size_t)PARAMS_N + i],
+                    s[3*(size_t)PARAMS_N + i], s[2*(size_t)PARAMS_N + i], s[1*(size_t)PARAMS_N + i], s[0*(size_t)PARAMS_N + i]
+                );
+                __m256i a = _mm256_set1_epi32((int32_t)rows[b*(size_t)PARAMS_N + q]);
+                u = _mm256_add_epi32(u, _mm256_mullo_epi32(a, r));
+            }
+            _mm256_storeu_si256((__m256i *)(acc + q*(size_t)PARAMS_NBAR), u);
+#else
+            uint32_t *uq = acc + q*(size_t)PARAMS_NBAR;
+            for (size_t b = 0; b < cnt; b++) {
+                const size_t i = i0 + b;
+                uint32_t a = rows[b*(size_t)PARAMS_N + q];
+                uq[0] += a * (uint32_t)s[0*(size_t)PARAMS_N + i];
+                uq[1] += a * (uint32_t)s[1*(size_t)PARAMS_N + i];
+                uq[2] += a * (uint32_t)s[2*(size_t)PARAMS_N + i];
+                uq[3] += a * (uint32_t)s[3*(size_t)PARAMS_N + i];
+                uq[4] += a * (uint32_t)s[4*(size_t)PARAMS_N + i];
+                uq[5] += a * (uint32_t)s[5*(size_t)PARAMS_N + i];
+                uq[6] += a * (uint32_t)s[6*(size_t)PARAMS_N + i];
+                uq[7] += a * (uint32_t)s[7*(size_t)PARAMS_N + i];
+            }
+#endif
         }
         c_mac += mul_now_cycles() - c1;
     }
@@ -323,11 +322,11 @@ static int mul_AT_times_R_u32_fast(uint32_t *out, const int32_t *s, const uint32
     c1 = mul_now_cycles();
     for (size_t k = 0; k < PARAMS_NBAR; k++) {
         for (size_t i = 0; i < PARAMS_N; i++) {
-            out[k*PARAMS_N + i] = (uint32_t)acc[k*PARAMS_N + i] & qmask_mul_u32();
+            out[k*(size_t)PARAMS_N + i] = acc[i*(size_t)PARAMS_NBAR + k] & qmask_mul_u32();
         }
     }
     c_out += mul_now_cycles() - c1;
-    clear_bytes((uint8_t *)acc, (size_t)PARAMS_NBAR * PARAMS_N * sizeof(int64_t));
+    clear_bytes((uint8_t *)acc, (size_t)PARAMS_NBAR * PARAMS_N * sizeof(uint32_t));
     if (own) { free(rows); free(row_bytes); }
     free(acc);
     if (u32_profile_enabled_mul()) {
@@ -354,26 +353,54 @@ int venom_mul_add_sa_plus_e_u32(uint32_t *out, const int32_t *s, const uint32_t 
 void venom_mul_bs_u32(uint32_t *out, const uint32_t *b, const int32_t *s)
 {
     for (size_t i = 0; i < PARAMS_NBAR; i++) {
-        for (size_t j = 0; j < PARAMS_NBAR; j++) {
-            int64_t sum = 0;
-            for (size_t k = 0; k < PARAMS_N; k++) {
-                sum += (int64_t)b[i*PARAMS_N + k] * (int64_t)s[j*PARAMS_N + k];
-            }
-            out[i*PARAMS_NBAR + j] = (uint32_t)sum & qmask_mul_u32();
+#if defined(USE_AVX2_U32)
+        __m256i acc = _mm256_setzero_si256();
+        for (size_t k = 0; k < (size_t)PARAMS_N; k++) {
+            __m256i svec = _mm256_set_epi32(
+                s[7*(size_t)PARAMS_N + k], s[6*(size_t)PARAMS_N + k], s[5*(size_t)PARAMS_N + k], s[4*(size_t)PARAMS_N + k],
+                s[3*(size_t)PARAMS_N + k], s[2*(size_t)PARAMS_N + k], s[1*(size_t)PARAMS_N + k], s[0*(size_t)PARAMS_N + k]
+            );
+            __m256i bvec = _mm256_set1_epi32((int32_t)b[i*(size_t)PARAMS_N + k]);
+            acc = _mm256_add_epi32(acc, _mm256_mullo_epi32(bvec, svec));
         }
+        _mm256_storeu_si256((__m256i *)(out + i*(size_t)PARAMS_NBAR), acc);
+#else
+        for (size_t j = 0; j < PARAMS_NBAR; j++) {
+            uint32_t sum = 0;
+            for (size_t k = 0; k < (size_t)PARAMS_N; k++) {
+                sum += b[i*(size_t)PARAMS_N + k] * (uint32_t)s[j*(size_t)PARAMS_N + k];
+            }
+            out[i*(size_t)PARAMS_NBAR + j] = sum;
+        }
+#endif
     }
+    for (size_t i = 0; i < PARAMS_NBAR * PARAMS_NBAR; i++) out[i] &= qmask_mul_u32();
 }
 
 void venom_mul_add_sb_plus_e_u32(uint32_t *out, const uint32_t *b, const int32_t *s, const uint32_t *e)
 {
     for (size_t k = 0; k < PARAMS_NBAR; k++) {
-        for (size_t i = 0; i < PARAMS_NBAR; i++) {
-            int64_t sum = e[k*PARAMS_NBAR + i];
-            for (size_t j = 0; j < PARAMS_N; j++) {
-                sum += (int64_t)s[k*PARAMS_N + j] * (int64_t)b[j*PARAMS_NBAR + i];
-            }
-            out[k*PARAMS_NBAR + i] = (uint32_t)sum & qmask_mul_u32();
+        uint32_t *ok = out + k*(size_t)PARAMS_NBAR;
+#if defined(USE_AVX2_U32)
+        __m256i acc = _mm256_loadu_si256((const __m256i *)(e + k*(size_t)PARAMS_NBAR));
+        for (size_t j = 0; j < (size_t)PARAMS_N; j++) {
+            __m256i svec = _mm256_set1_epi32(s[k*(size_t)PARAMS_N + j]);
+            __m256i bvec = _mm256_loadu_si256((const __m256i *)(b + j*(size_t)PARAMS_NBAR));
+            acc = _mm256_add_epi32(acc, _mm256_mullo_epi32(svec, bvec));
         }
+        _mm256_storeu_si256((__m256i *)ok, acc);
+#else
+        for (size_t i = 0; i < PARAMS_NBAR; i++) {
+            uint32_t sum = e[k*(size_t)PARAMS_NBAR + i];
+            for (size_t j = 0; j < (size_t)PARAMS_N; j++) {
+                sum += (uint32_t)s[k*(size_t)PARAMS_N + j] * b[j*(size_t)PARAMS_NBAR + i];
+            }
+            ok[i] = sum;
+        }
+#endif
+    }
+    for (size_t i = 0; i < PARAMS_NBAR * PARAMS_NBAR; i++) {
+        out[i] &= qmask_mul_u32();
     }
 }
 
