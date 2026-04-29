@@ -7,9 +7,9 @@
 #define CRYPTO_BYTES              48ULL
 #define CRYPTO_CIPHERTEXTBYTES  32776ULL
 
-int crypto_kem_keypair_Frost384(unsigned char *pk, unsigned char *sk);
-int crypto_kem_enc_Frost384(unsigned char *ct, unsigned char *ss, const unsigned char *pk);
-int crypto_kem_dec_Frost384(unsigned char *ss, const unsigned char *ct, const unsigned char *sk);
+int crypto_kem_keypair_Venom384(unsigned char *pk, unsigned char *sk);
+int crypto_kem_enc_Venom384(unsigned char *ct, unsigned char *ss, const unsigned char *pk);
+int crypto_kem_dec_Venom384(unsigned char *ss, const unsigned char *ct, const unsigned char *sk);
 
 extern DRNG_ctx drng_algorithm;
 
@@ -18,7 +18,7 @@ unsigned long long kem_get_sk_len_bytes(void) { return CRYPTO_SECRETKEYBYTES; }
 unsigned long long kem_get_ss_len_bytes(void) { return CRYPTO_BYTES; }
 unsigned long long kem_get_ct_len_bytes(void) { return CRYPTO_CIPHERTEXTBYTES; }
 
-/* Generate Frost-384 keypair and output lengths. */
+/* Generate MAMBA-Frost-384 keypair and output lengths. */
 int kem_keygen(
     unsigned char *pk, unsigned long long *pk_len_bytes,
     unsigned char *sk, unsigned long long *sk_len_bytes)
@@ -30,14 +30,14 @@ int kem_keygen(
     *pk_len_bytes = kem_get_pk_len_bytes();
     *sk_len_bytes = kem_get_sk_len_bytes();
 
-    if (crypto_kem_keypair_Frost384(pk, sk) != 0) {
+    if (crypto_kem_keypair_Venom384(pk, sk) != 0) {
         return VENOM_KEM_INTERNAL_ERROR;
     }
 
     return VENOM_KEM_SUCCESS;
 }
 
-/* Encapsulate with Frost-384 public key and output lengths. */
+/* Encapsulate with MAMBA-Frost-384 public key and output lengths. */
 int kem_enc(
     unsigned char *pk, unsigned long long pk_len_bytes,
     unsigned char *ss, unsigned long long *ss_len_bytes,
@@ -53,14 +53,14 @@ int kem_enc(
     *ss_len_bytes = kem_get_ss_len_bytes();
     *ct_len_bytes = kem_get_ct_len_bytes();
 
-    if (crypto_kem_enc_Frost384(ct, ss, pk) != 0) {
+    if (crypto_kem_enc_Venom384(ct, ss, pk) != 0) {
         return VENOM_KEM_INTERNAL_ERROR;
     }
 
     return VENOM_KEM_SUCCESS;
 }
 
-/* Decapsulate Frost-384 ciphertext and output shared-secret length. */
+/* Decapsulate MAMBA-Frost-384 ciphertext and output shared-secret length. */
 int kem_dec(
     unsigned char *sk, unsigned long long sk_len_bytes,
     unsigned char *ct, unsigned long long ct_len_bytes,
@@ -78,7 +78,7 @@ int kem_dec(
     }
 
     *ss_len_bytes = kem_get_ss_len_bytes();
-    ret = crypto_kem_dec_Frost384(ss, ct, sk);
+    ret = crypto_kem_dec_Venom384(ss, ct, sk);
     if (ret == 0) {
         return VENOM_KEM_SUCCESS;
     }

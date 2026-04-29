@@ -2,7 +2,7 @@
 #define KEM_ALGORITHM_INSTANCE_H
 
 #define OUTPUT_BLANK_TEST_VECTORS 0
-#define ALGORITHM_INSTANCE "Frost-192"
+#define ALGORITHM_INSTANCE "MAMBA-Frost-192"
 
 #ifdef __cplusplus
 extern "C" {
