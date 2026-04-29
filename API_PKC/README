@@ -1,14 +1,19 @@
-API_PKC submission package for MAMBA-Venom KEM.
+MAMBA-Frost API_PKC Directory
 
-Final deliverable directory: API_PKC/
+This directory is the official API_PKC adaptation directory for MAMBA-Frost.
+MAMBA-Frost is an LWQ-Z KEM.
+Frost was previously developed under the working name Venom.
+
+Directory layout
 - Implementations/
-- Test_Vectors/
+  - Reference_Implementation/: ISO C reference implementations.
+  - Optimized_Implementation/: optimized implementations for 64-bit PC platforms.
+  - Additional_Implementation/: additional or platform-specific implementations.
+- Test_Vectors/: packaging location for generated API_PKC KAT vectors.
 
-Current stage:
-- Reference_Implementation: Venom-128/192/256/384/512 completed.
-- Optimized_Implementation: placeholders only, pending next stage.
-
-Template preservation note:
-- Original API_PKC template files/directories are preserved (including
-  Implementations/Reference_Implementation/AlgorithmInstance and Test_Vector).
-- Venom migration files are added on top of the original template structure.
+Official parameter-set instances
+- MAMBA-Frost-128
+- MAMBA-Frost-192
+- MAMBA-Frost-256
+- MAMBA-Frost-384
+- MAMBA-Frost-512
