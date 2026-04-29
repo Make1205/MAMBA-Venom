@@ -1,32 +1,21 @@
-API_PKC Implementations layout
+API_PKC Implementations for MAMBA-Frost
 
-Reference_Implementation (completed in this stage):
-- Venom-128
-- Venom-192
-- Venom-256
-- Venom-384
-- Venom-512
+Subdirectories
+- Reference_Implementation/
+  ISO C reference implementation instances.
+- Optimized_Implementation/
+  Optimized implementation instances for 64-bit PC platforms.
+- Additional_Implementation/
+  Additional implementations (experimental, platform-specific, or future variants).
 
-Optimized_Implementation:
-- Venom-128 (pending)
-- Venom-192 (pending)
-- Venom-256 (pending)
-- Venom-384 (pending)
-- Venom-512 (pending)
+Instance layout expectations
+- Each instance directory should be independently buildable with make.
+- Typical flow per instance: make clean && make && make KAT && ./KAT_KEM.
 
-Original template directory retained:
-- Reference_Implementation/AlgorithmInstance (kept unchanged for compatibility)
+Integration rules
+- Official API_PKC files drng, auxfunc, and KAT_KEM should not be modified.
+- Randomness is adapted through the official DRNG integration path.
+- Hash/XOF adaptation is routed through auxfunc wrappers.
 
-Per-directory build + KAT commands (example):
-cd API_PKC/Implementations/Reference_Implementation/Venom-128 && make clean && make && make KAT && ./KAT_KEM && make clean
-cd API_PKC/Implementations/Reference_Implementation/Venom-192 && make clean && make && make KAT && ./KAT_KEM && make clean
-cd API_PKC/Implementations/Reference_Implementation/Venom-256 && make clean && make && make KAT && ./KAT_KEM && make clean
-cd API_PKC/Implementations/Reference_Implementation/Venom-384 && make clean && make && make KAT && ./KAT_KEM && make clean
-cd API_PKC/Implementations/Reference_Implementation/Venom-512 && make clean && make && make KAT && ./KAT_KEM && make clean
-
-Notes:
-- API_PKC auxiliary files are included in each Venom Reference directory.
-- Venom internal SHAKE/XOF path has not yet been fully routed through auxfunc wrappers.
-  This is deferred to a later migration step.
-
-Final submission root is API_PKC/.
+Note
+- Frost was previously developed under the working name Venom.
