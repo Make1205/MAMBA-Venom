@@ -36,7 +36,7 @@ Optional output path:
 The script will build and benchmark all five levels for:
 
 - `OPT_LEVEL=REFERENCE`
-- `FAST` (implemented as `OPT_LEVEL=FAST`; Frost-128 uses AVX2 u16 intrinsics, while Frost-192/256 default to the fast RWCF-style u16 path with `USE_AVX2` disabled unless `FORCE_USE_AVX2_FOR_L256` is explicitly defined)
+- `FAST` (implemented as `OPT_LEVEL=FAST`; Frost-128/192/256 use AVX2 u16 intrinsics, while Frost-384/512 use the u32 full SHAKE4x path)
 
 and write a CSV with per-operation timing/cycle summary.
 
@@ -54,10 +54,10 @@ Environment toggles for benchmark orchestration:
 CSV naming conventions:
 
 - `mode`: `REFERENCE` or `FAST`
-- `backend`: true implementation tag, for example `ref`, `avx2_u16` (Frost-128 FAST), `fast_u16_no_avx2` (Frost-192/256 default FAST), or `u32_full_shake4x` (Frost-384/512 FAST)
+- `backend`: true implementation tag, for example `ref`, `avx2_u16` (Frost-128/192/256 FAST), or `u32_full_shake4x` (Frost-384/512 FAST)
 - `notes`: mirrors the backend implementation tag for FAST rows and uses `u16`/`u32` for REFERENCE rows
 
 
 ## Experimental u16 streaming multiplication
 
-`FROST_U16_STREAMING_MATMUL=1` enables an experimental reference u16 `A^T*R` streaming path for Frost-128/192/256. It is off by default, preserves KAT byte output, and is intended for profiling cache/materialization effects before any default-path change.
+`FROST_U16_STREAMING_MATMUL=1` enables an experimental reference u16 `A^T*R` streaming path for Frost-128/192/256. It is off by default, preserves KAT byte output, and is intended for profiling cache/materialization effects before any default-path change. It does not replace the FAST AVX2 u16 path.

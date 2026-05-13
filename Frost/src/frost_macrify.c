@@ -297,9 +297,11 @@ int frodo_mul_add_sa_plus_e(uint16_t *out, const uint16_t *s, uint16_t *e, const
             for (p = 0; p < 8; p++) {
                 sp[p] = _mm256_set1_epi16(s[j*PARAMS_N + i + p]);
             }
-            for (q = 0; q < PARAMS_N; q+=16) {
-                // e may not be 32-byte aligned at every call site (notably for
-                // forced AVX2 in Level-192/256), so use unaligned vector loads/stores.
+            for (q = 0; q + 15 < PARAMS_N; q+=16) {
+                // e may not be 32-byte aligned at every call site, so use
+                // unaligned vector loads/stores. The q+15 bound keeps the
+                // vectorized path safe for profiles such as Frost-192 whose N
+                // is not a multiple of 16.
                 acc = _mm256_loadu_si256((const __m256i*)&e[j*PARAMS_N + q]);
                 for (p = 0; p < 8; p++) {
                     b = _mm256_loadu_si256((const __m256i*)&A[p*PARAMS_N + q]);
@@ -308,6 +310,15 @@ int frodo_mul_add_sa_plus_e(uint16_t *out, const uint16_t *s, uint16_t *e, const
                 }
                 _mm256_storeu_si256((__m256i*)&e[j*PARAMS_N + q], acc);
             }
+#if ((PARAMS_N % 16) != 0)
+            for (; q < PARAMS_N; q++) {
+                uint16_t sum = e[j*PARAMS_N + q];
+                for (p = 0; p < 8; p++) {
+                    sum += s[j*PARAMS_N + i + p] * A[p*PARAMS_N + q];
+                }
+                e[j*PARAMS_N + q] = sum;
+            }
+#endif
         }
 #ifdef PROFILE_ALL_LEVELS
         prof_mul += prof_all_enabled() ? prof_now_cycles() - prof_t : 0;

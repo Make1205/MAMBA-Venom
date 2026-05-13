@@ -21,7 +21,7 @@ backend_tag(){
   elif [[ "$level" == "128" ]]; then
     echo avx2_u16
   elif [[ "$level" == "192" || "$level" == "256" ]]; then
-    if [[ "${FORCE_USE_AVX2_FOR_L256:-0}" == "1" ]]; then echo avx2_u16_forced; else echo fast_u16_no_avx2; fi
+    echo avx2_u16
   else
     echo u32_full_shake4x
   fi
@@ -35,8 +35,7 @@ audit_backend(){
   elif [[ "$level" == "128" ]]; then
     use_avx2=1; use_avx2_u32=1; effective="frost_macrify.c USE_AVX2 u16 path"
   elif [[ "$level" == "192" || "$level" == "256" ]]; then
-    use_avx2_u32=1
-    if [[ "$force" == "1" ]]; then use_avx2=1; effective="frost_macrify.c forced USE_AVX2 u16 path"; else use_avx2=0; effective="frost_macrify.c FAST/RWCF u16 path (USE_AVX2 undefined in level file)"; fi
+    use_avx2=1; use_avx2_u32=1; effective="frost_macrify.c USE_AVX2 u16 path"
   else
     use_avx2=1; use_avx2_u32=1; effective="frost_macrify_u32.c u32_full_shake4x path"
   fi
