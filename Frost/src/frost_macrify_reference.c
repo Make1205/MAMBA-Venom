@@ -20,7 +20,10 @@ int frodo_mul_add_as_plus_e(uint16_t *out, const uint16_t *s, const uint16_t *e,
   // Inputs: s, e (N x N_BAR)
   // Output: out = A*s + e (N x N_BAR)
     int i, j, k;
-    int16_t A[PARAMS_N * PARAMS_N] = {0};       
+    int16_t A[PARAMS_N * PARAMS_N] = {0};
+#ifdef PROFILE_ALL_LEVELS
+    unsigned long long prof_t = prof_all_enabled() ? prof_now_cycles() : 0;
+#endif       
        
 #if defined(USE_AES128_FOR_A)    // Matrix A generation using AES128, done per 128-bit block                                          
     size_t A_len = PARAMS_N * PARAMS_N * sizeof(int16_t);    
@@ -54,6 +57,10 @@ int frodo_mul_add_as_plus_e(uint16_t *out, const uint16_t *s, const uint16_t *e,
     for (i = 0; i < PARAMS_N * PARAMS_N; i++) {
         A[i] = LE_TO_UINT16(A[i]);
     }
+#ifdef PROFILE_ALL_LEVELS
+    frost_prof_mat_add_expand(prof_all_enabled() ? prof_now_cycles() - prof_t : 0);
+    prof_t = prof_all_enabled() ? prof_now_cycles() : 0;
+#endif
     memcpy(out, e, PARAMS_NBAR * PARAMS_N * sizeof(uint16_t));  
 
     for (i = 0; i < PARAMS_N; i++) {                            // Matrix multiplication-addition A*s + e
@@ -65,6 +72,9 @@ int frodo_mul_add_as_plus_e(uint16_t *out, const uint16_t *s, const uint16_t *e,
             out[i*PARAMS_NBAR + k] += sum;                      // Adding e. No need to reduce modulo 2^15, extra bits are taken care of during packing later on.
         }
     }
+#ifdef PROFILE_ALL_LEVELS
+    frost_prof_mat_add_mul(prof_all_enabled() ? prof_now_cycles() - prof_t : 0);
+#endif
     
 #if defined(USE_AES128_FOR_A)
     AES128_free_schedule(aes_key_schedule);
@@ -78,7 +88,10 @@ int frodo_mul_add_sa_plus_e(uint16_t *out, const uint16_t *s, uint16_t *e, const
   // Inputs: s', e' (N_BAR x N)
   // Output: out = s'*A + e' (N_BAR x N)
     int i, j, k;
-    int16_t A[PARAMS_N * PARAMS_N] = {0};        
+    int16_t A[PARAMS_N * PARAMS_N] = {0};
+#ifdef PROFILE_ALL_LEVELS
+    unsigned long long prof_t = prof_all_enabled() ? prof_now_cycles() : 0;
+#endif        
     
 #if defined(USE_AES128_FOR_A)    // Matrix A generation using AES128, done per 128-bit block                                       
     size_t A_len = PARAMS_N * PARAMS_N * sizeof(int16_t);      
@@ -112,6 +125,10 @@ int frodo_mul_add_sa_plus_e(uint16_t *out, const uint16_t *s, uint16_t *e, const
     for (i = 0; i < PARAMS_N * PARAMS_N; i++) {
         A[i] = LE_TO_UINT16(A[i]);
     }
+#ifdef PROFILE_ALL_LEVELS
+    frost_prof_mat_add_expand(prof_all_enabled() ? prof_now_cycles() - prof_t : 0);
+    prof_t = prof_all_enabled() ? prof_now_cycles() : 0;
+#endif
     memcpy(out, e, PARAMS_NBAR * PARAMS_N * sizeof(uint16_t));
 
     for (i = 0; i < PARAMS_N; i++) {                            // Matrix multiplication-addition A*s + e
@@ -123,6 +140,9 @@ int frodo_mul_add_sa_plus_e(uint16_t *out, const uint16_t *s, uint16_t *e, const
             out[k*PARAMS_N + i] += sum;                         // Adding e. No need to reduce modulo 2^15, extra bits are taken care of during packing later on.
         }
     }
+#ifdef PROFILE_ALL_LEVELS
+    frost_prof_mat_add_mul(prof_all_enabled() ? prof_now_cycles() - prof_t : 0);
+#endif
     
 #if defined(USE_AES128_FOR_A)
     AES128_free_schedule(aes_key_schedule);

@@ -1,0 +1,70 @@
+#!/usr/bin/env bash
+set -euo pipefail
+OUT_CSV=${1:-/tmp/frost_profile_breakdown.csv}
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+FROST_DIR=$(cd "${SCRIPT_DIR}/.." && pwd)
+ONLY_LEVEL=${ONLY_LEVEL:-}
+ONLY_MODE=${ONLY_MODE:-}
+RUN_REFERENCE=${RUN_REFERENCE:-1}
+RUN_AVX2=${RUN_AVX2:-1}
+PROFILE_LEVELS=${PROFILE_LEVELS:-128 192 256}
+PROFILE_ITERS=${PROFILE_ITERS:-10}
+PROFILE_BENCH_SECONDS=${PROFILE_BENCH_SECONDS:-1}
+PROFILE_TIMEOUT=${PROFILE_TIMEOUT:-600}
+
+level_bin(){ case "$1" in 128) echo frost128/test_KEM;;192) echo frost192/test_KEM;;256) echo frost256/test_KEM;;384) echo frost384/test_KEM;;512) echo frost512/test_KEM;;*) return 1;; esac; }
+backend_tag(){ [[ "$1" == "REFERENCE" ]] && echo ref || echo avx2; }
+
+modes=()
+if [[ -n "$ONLY_MODE" ]]; then
+  modes=("$ONLY_MODE")
+else
+  [[ "$RUN_REFERENCE" == "1" ]] && modes+=("REFERENCE")
+  [[ "$RUN_AVX2" == "1" ]] && modes+=("AVX2")
+fi
+read -r -a levels <<< "$PROFILE_LEVELS"
+[[ -n "$ONLY_LEVEL" ]] && levels=("$ONLY_LEVEL")
+
+printf 'scheme,level,backend,operation,stage,cycles_mean,iterations\n' > "$OUT_CSV"
+
+tmpdir=$(mktemp -d)
+trap 'rm -rf "$tmpdir"' EXIT
+
+for mode in "${modes[@]}"; do
+  echo "[profile] building $mode" >&2
+  make -C "$FROST_DIR" clean >/dev/null
+  if [[ "$mode" == "REFERENCE" ]]; then
+    make -C "$FROST_DIR" OPT_LEVEL=REFERENCE EXTRA_CFLAGS='-O3 -DPROFILE_ALL_LEVELS' tests >/dev/null
+  else
+    make -C "$FROST_DIR" OPT_LEVEL=FAST EXTRA_CFLAGS='-O3 -DPROFILE_ALL_LEVELS' tests >/dev/null
+  fi
+  backend=$(backend_tag "$mode")
+  for level in "${levels[@]}"; do
+    bin=$(level_bin "$level")
+    log="$tmpdir/${mode}_${level}.log"
+    echo "[profile] mode=$mode level=$level iterations=$PROFILE_ITERS bench_seconds=$PROFILE_BENCH_SECONDS" >&2
+    timeout "$PROFILE_TIMEOUT" env PROFILE_ALL_LEVELS=1 FROST_KEM_TEST_ITERATIONS="$PROFILE_ITERS" FROST_KEM_BENCH_SECONDS="$PROFILE_BENCH_SECONDS" "$FROST_DIR/$bin" >"$log" 2>&1
+    awk -v scheme=Frost -v level="$level" -v backend="$backend" '
+      /^\[profile-all\]/ {
+        api="";
+        for (i=1; i<=NF; i++) {
+          split($i, kv, "=");
+          if (kv[1] == "api") { api=kv[2]; break; }
+        }
+        for (i=1; i<=NF; i++) {
+          split($i, kv, "=");
+          if (kv[1] ~ /^\[profile-all\]$/ || kv[1] == "level" || kv[1] == "api") continue;
+          key=api SUBSEP kv[1]; sums[key]+=kv[2]; counts[key]++;
+        }
+      }
+      END {
+        for (key in sums) {
+          split(key, parts, SUBSEP);
+          printf "%s,%s,%s,%s,%s,%.0f,%d\n", scheme, level, backend, parts[1], parts[2], sums[key]/counts[key], counts[key];
+        }
+      }
+    ' "$log" | sort -t, -k4,4 -k5,5 >> "$OUT_CSV"
+  done
+done
+
+echo "[profile] wrote $OUT_CSV" >&2
