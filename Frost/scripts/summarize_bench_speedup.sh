@@ -6,13 +6,13 @@ NR==1 { next }
 $14=="ok" {
   level=$2; mode=$3; total=$8+0
   if (mode=="REFERENCE") ref[level]=total
-  else if (mode=="AVX2") avx[level]=total
+  else if (mode=="AVX2" || mode=="FAST") fast[level]=total
 }
 END {
-  printf "level,ref_total,avx2_total,speedup(ref/avx2)\n"
+  printf "level,ref_total,fast_total,speedup(ref/fast)\n"
   for (lvl in ref) {
-    if (lvl in avx && avx[lvl] > 0) {
-      printf "%s,%.0f,%.0f,%.3f\n", lvl, ref[lvl], avx[lvl], ref[lvl]/avx[lvl]
+    if (lvl in fast && fast[lvl] > 0) {
+      printf "%s,%.0f,%.0f,%.3f\n", lvl, ref[lvl], fast[lvl], ref[lvl]/fast[lvl]
     }
   }
 }' "$CSV_PATH" | sort -t, -k1,1n
