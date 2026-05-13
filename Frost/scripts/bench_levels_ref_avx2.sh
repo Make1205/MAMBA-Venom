@@ -13,22 +13,23 @@ RUN_AVX2=${RUN_AVX2:-1}
 PROFILE_U32=${PROFILE_U32:-0}
 REPS=${REPS:-}
 
+source "${SCRIPT_DIR}/frost_profile_sizes.sh"
+
 get_level_env_default(){ local p="$1" l="$2" d="$3" ar="${4:-0}"; local v="${p}_${l}"; local val="${!v:-}"; if [[ "$ar" == "1" && -n "$REPS" ]]; then echo "$REPS"; elif [[ -n "$val" ]]; then echo "$val"; else echo "$d"; fi; }
 api_header_for_level(){ case "$1" in 128) echo api_frost128.h;;192) echo api_frost192.h;;256) echo api_frost256.h;;384) echo api_frost384.h;;512) echo api_frost512.h;; esac; }
 level_bin(){ case "$1" in 128) echo frost128/test_KEM;;192) echo frost192/test_KEM;;256) echo frost256/test_KEM;;384) echo frost384/test_KEM;;512) echo frost512/test_KEM;; esac; }
 
 get_bench_seconds(){ case "$1" in 128|192|256) get_level_env_default FROST_BENCH_REPS "$1" 1 1;;384) get_level_env_default FROST_BENCH_REPS "$1" 3 1;;512) get_level_env_default FROST_BENCH_REPS "$1" 1 1;; esac; }
 get_correct_iters(){ case "$1" in 128|192|256) get_level_env_default FROST_KAT_REPS "$1" 1000 1;;384) get_level_env_default FROST_KAT_REPS "$1" 20 1;;512) get_level_env_default FROST_KAT_REPS "$1" 10 1;; esac; }
-get_timeout_secs(){ case "$1" in 128|192|256) get_level_env_default FROST_TIMEOUT "$1" 120;;384) get_level_env_default FROST_TIMEOUT "$1" 600;;512) get_level_env_default FROST_TIMEOUT "$1" 1200;; esac; }
-
-level_params(){ case "$1" in
-128) echo "q=32768,qbits=15,n=640,m=640,ell=8,eta_s=2,eta_r=2,b_msg=2,t_pk=11,t_u=10,t_v=6";;
-192) echo "q=32768,qbits=15,n=976,m=976,ell=8,eta_s=2,eta_r=2,b_msg=3,t_pk=12,t_u=12,t_v=6";;
-256) echo "q=65536,qbits=16,n=1344,m=1344,ell=8,eta_s=2,eta_r=2,b_msg=4,t_pk=13,t_u=13,t_v=8";;
-384) echo "q=262144,qbits=18,n=2176,m=2176,ell=8,eta_s=3,eta_r=3,b_msg=6,t_pk=16,t_u=15,t_v=13";;
-512) echo "q=1048576,qbits=20,n=3072,m=3072,ell=8,eta_s=4,eta_r=4,b_msg=8,t_pk=18,t_u=18,t_v=11";;
+get_timeout_secs(){ case "$1" in
+128|192) get_level_env_default FROST_TIMEOUT "$1" 120;;
+256) get_level_env_default FROST_TIMEOUT "$1" 600;;
+384) get_level_env_default FROST_TIMEOUT "$1" 600;;
+512) get_level_env_default FROST_TIMEOUT "$1" 1200;;
 esac; }
-expected_sizes(){ case "$1" in 128) echo "7072,6480,9056,16";;192) echo "11744,11792,14736,24";;256) echo "17504,17568,21600,32";;384) echo "34848,32776,41440,48";;512) echo "55328,55416,67680,64";; esac; }
+
+level_params(){ frost_level_params "$1"; }
+expected_sizes(){ frost_expected_sizes "$1"; }
 query_sizes_from_api(){ local h; h="$(api_header_for_level "$1")"; cpp -dM -include "$FROST_DIR/src/$h" /dev/null | awk '$2=="CRYPTO_PUBLICKEYBYTES"{pk=$3}$2=="CRYPTO_CIPHERTEXTBYTES"{ct=$3}$2=="CRYPTO_SECRETKEYBYTES"{sk=$3}$2=="CRYPTO_BYTES"{ss=$3}END{printf "%s,%s,%s,%s\n",pk,ct,sk,ss}'; }
 
 parse_cycles(){ awk '$1=="Key"&&$2=="generation"{ki=$3;k=(NF>=7?$(NF-1):"")}$1=="KEM"&&$2=="encapsulate"{ei=$3;e=(NF>=7?$(NF-1):"")}$1=="KEM"&&$2=="decapsulate"{di=$3;d=(NF>=7?$(NF-1):"")}END{tot="";if(k!=""&&e!=""&&d!="")tot=k+e+d;it=ki;if(ei>it)it=ei;if(di>it)it=di;printf "%s,%s,%s,%s,%s\n",k,e,d,tot,it}' "$1"; }

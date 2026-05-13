@@ -1,9 +1,9 @@
 Algorithm instance: Frost-128
 Functionality: KEM
 Implementation type: Reference
-Public key bytes: 7072
-Secret key bytes: 9056
-Ciphertext bytes: 6480
+Public key bytes: 5152
+Secret key bytes: 6752
+Ciphertext bytes: 5216
 Shared secret bytes: 16
 Required compiler: gcc/clang (C99 or later)
 Required instruction set: none (portable reference C)
