@@ -1,9 +1,9 @@
 Algorithm instance: Frost-256
 Functionality: KEM
 Implementation type: Reference
-Public key bytes: 17504
-Secret key bytes: 21600
-Ciphertext bytes: 17568
+Public key bytes: 16672
+Secret key bytes: 19296
+Ciphertext bytes: 15448
 Shared secret bytes: 32
 Required compiler: gcc/clang (C99 or later)
 Required instruction set: none (portable reference C)
@@ -13,7 +13,7 @@ Source file summary:
 - KEM_AlgorithmInstance.[ch]: API_PKC KEM interface to Frost-256.
 - randombytes_api.c: API_PKC DRNG-backed randombytes() wrapper.
 - KAT_KEM.c, drng.[ch], auxfunc.[ch]: API_PKC template files.
-- Frost/src/venom256.c + dependencies from Frost/common: original Frost reference path.
+- Frost/src/frost256.c + dependencies from Frost/common: original Frost reference path.
 Notes:
 - This implementation is for Reference_Implementation.
 - Current cryptographic hash/XOF path uses original Frost SHAKE implementation.

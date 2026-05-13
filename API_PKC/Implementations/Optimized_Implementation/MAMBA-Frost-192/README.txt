@@ -1,9 +1,9 @@
 Algorithm instance: Frost-192
 Functionality: KEM
 Implementation type: Optimized
-Public key bytes: 11744
-Secret key bytes: 14736
-Ciphertext bytes: 11792
+Public key bytes: 9624
+Secret key bytes: 11432
+Ciphertext bytes: 9688
 Shared secret bytes: 24
 Required compiler: gcc/clang (C99 or later)
 Required instruction set: AVX2 + AES-NI + SSE2
@@ -13,7 +13,7 @@ Source file summary:
 - KEM_AlgorithmInstance.[ch]: API_PKC KEM interface to Frost-192.
 - randombytes_api.c: API_PKC DRNG-backed randombytes() wrapper.
 - KAT_KEM.c, drng.[ch], auxfunc.[ch]: API_PKC template files.
-- Frost/src/venom192.c + dependencies from Frost/common: optimized AVX2 path.
+- Frost/src/frost192.c + dependencies from Frost/common: optimized AVX2 path.
 Notes:
 - Optimized implementation requires AVX2-capable CPU.
 - API_PKC auxiliary files are included.

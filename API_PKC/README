@@ -2,7 +2,7 @@ MAMBA-Frost API_PKC Directory
 
 This directory is the official API_PKC adaptation directory for MAMBA-Frost.
 MAMBA-Frost is an LWQ-Z KEM.
-Frost was previously developed under the working name Venom.
+Frost was previously developed under the working name Frost.
 
 Directory layout
 - Implementations/

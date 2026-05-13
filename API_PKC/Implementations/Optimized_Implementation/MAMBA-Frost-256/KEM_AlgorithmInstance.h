@@ -8,13 +8,13 @@
 extern "C" {
 #endif
 
-#define VENOM_KEM_SUCCESS 0
-#define VENOM_KEM_DECAPS_FAIL -1
-#define VENOM_KEM_NULL_POINTER -2
-#define VENOM_KEM_BAD_PK_LEN -3
-#define VENOM_KEM_BAD_SK_LEN -4
-#define VENOM_KEM_BAD_CT_LEN -5
-#define VENOM_KEM_INTERNAL_ERROR -6
+#define FROST_KEM_SUCCESS 0
+#define FROST_KEM_DECAPS_FAIL -1
+#define FROST_KEM_NULL_POINTER -2
+#define FROST_KEM_BAD_PK_LEN -3
+#define FROST_KEM_BAD_SK_LEN -4
+#define FROST_KEM_BAD_CT_LEN -5
+#define FROST_KEM_INTERNAL_ERROR -6
 
 unsigned long long kem_get_pk_len_bytes(void);
 unsigned long long kem_get_sk_len_bytes(void);

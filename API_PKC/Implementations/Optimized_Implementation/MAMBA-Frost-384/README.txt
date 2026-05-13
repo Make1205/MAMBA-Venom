@@ -13,7 +13,7 @@ Source file summary:
 - KEM_AlgorithmInstance.[ch]: API_PKC KEM interface to Frost-384.
 - randombytes_api.c: API_PKC DRNG-backed randombytes() wrapper.
 - KAT_KEM.c, drng.[ch], auxfunc.[ch]: API_PKC template files.
-- Frost/src/venom384.c + dependencies from Frost/common: optimized u32 AVX2 path.
+- Frost/src/frost384.c + dependencies from Frost/common: optimized u32 AVX2 path.
 Notes:
 - Optimized implementation requires AVX2-capable CPU.
 - Optimized path uses u32_full_shake4x style row-batched streaming backend.
