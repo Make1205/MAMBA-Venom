@@ -1,35 +1,34 @@
-Venom: Plain-LWE KEM with Public Double-Dither Quantization
+Frost: Plain-LWE KEM with Public Double-Dither Quantization
 ===========================================================
 
-`Venom` is a C/Python implementation repository for a plain-LWE key encapsulation mechanism.
+`Frost` is a C/Python implementation repository for a plain-LWE key encapsulation mechanism.
 The implemented core mechanism uses **public two-layer dither quantization**,
-including the ephemeral variant in `eVenom`.
+including the ephemeral variant in `eFrost`.
 
 ## Security level variants
 
-- **Venom-128** (implemented)
-- **Venom-192** (implemented)
-- **Venom-256** (implemented)
-- **Venom-384** (parameter extension target, not yet implemented in C core)
-- **Venom-512** (parameter extension target, not yet implemented in C core)
+- **Frost-128** (implemented)
+- **Frost-192** (implemented)
+- **Frost-256** (implemented)
+- **Frost-384** (implemented; repository extension parameters retained)
+- **Frost-512** (implemented; repository extension parameters retained)
 
-Current C core supports `Venom-128/192/256` and now includes a 32-bit reference backend for
-`Venom-384/512` (qbits 18/20). For `Venom-384/512`, AVX2 builds explicitly fall back to the
-reference backend.
+Current C core supports all five `MAMBA-Frost-128/192/256/384/512` profiles.
+`Frost-384/512` keep the repository extension parameters and use the 32-bit backend.
 
 | Variant | n | m | ell | qbits | eta_s | eta_r | b_msg | t_pk | t_u | t_v | pk bytes | ct bytes | sk bytes | ss bytes |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| Venom-128 | 640 | 640 | 8 | 15 | 2 | 2 | 2 | 11 | 10 | 6 | 7072 | 6480 | 9056 | 16 |
-| Venom-192 | 976 | 976 | 8 | 15 | 2 | 2 | 3 | 12 | 12 | 6 | 11744 | 11792 | 14736 | 24 |
-| Venom-256 | 1344 | 1344 | 8 | 16 | 2 | 2 | 4 | 13 | 13 | 8 | 17504 | 17568 | 21600 | 32 |
-| Venom-384 | 2176 | 2176 | 8 | 18 | 3 | 3 | 6 | 16 | 15 | 13 | 34848 | 32776 | 41440 | 48 |
-| Venom-512 | 3072 | 3072 | 8 | 20 | 4 | 4 | 8 | 18 | 18 | 11 | 55328 | 55416 | 67680 | 64 |
+| MAMBA-Frost-128 | 512 | 512 | 8 | 15 | 2 | 2 | 2 | 10 | 10 | 8 | 5152 | 5216 | 6752 | 16 |
+| MAMBA-Frost-192 | 872 | 872 | 8 | 16 | 1 | 1 | 3 | 11 | 11 | 8 | 9624 | 9688 | 11432 | 24 |
+| MAMBA-Frost-256 | 1280 | 1280 | 8 | 16 | 1 | 1 | 4 | 13 | 12 | 7 | 16672 | 15448 | 19296 | 32 |
+| MAMBA-Frost-384 | 2176 | 2176 | 8 | 18 | 3 | 3 | 6 | 16 | 15 | 13 | 34848 | 32776 | 41440 | 48 |
+| MAMBA-Frost-512 | 3072 | 3072 | 8 | 20 | 4 | 4 | 8 | 18 | 18 | 11 | 55328 | 55416 | 67680 | 64 |
 
 ## Repository contents
 
 - [`common/`](common/): shared AES/SHA3/random utilities.
-- [`Venom/`](Venom/): standard variant implementation and tests.
-- [`eVenom/`](eVenom/): ephemeral variant implementation and tests.
+- [`Frost/`](Frost/): standard variant implementation and tests.
+- [`eFrost/`](eFrost/): ephemeral variant implementation and tests.
 - [`LICENSE`](LICENSE): license text.
 
 ## Paper

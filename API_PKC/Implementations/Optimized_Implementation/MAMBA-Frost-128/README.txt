@@ -13,7 +13,7 @@ Source file summary:
 - KEM_AlgorithmInstance.[ch]: API_PKC KEM interface to Frost-128.
 - randombytes_api.c: API_PKC DRNG-backed randombytes() wrapper.
 - KAT_KEM.c, drng.[ch], auxfunc.[ch]: API_PKC template files.
-- Frost/src/venom128.c + dependencies from Frost/common: optimized AVX2 path.
+- Frost/src/frost128.c + dependencies from Frost/common: optimized AVX2 path.
 Notes:
 - Optimized implementation requires AVX2-capable CPU.
 - API_PKC auxiliary files are included.

@@ -13,7 +13,7 @@ Source file summary:
 - KEM_AlgorithmInstance.[ch]: API_PKC KEM interface to Frost-192.
 - randombytes_api.c: API_PKC DRNG-backed randombytes() wrapper.
 - KAT_KEM.c, drng.[ch], auxfunc.[ch]: API_PKC template files.
-- Frost/src/venom192.c + dependencies from Frost/common: original Frost reference path.
+- Frost/src/frost192.c + dependencies from Frost/common: original Frost reference path.
 Notes:
 - This implementation is for Reference_Implementation.
 - Current cryptographic hash/XOF path uses original Frost SHAKE implementation.

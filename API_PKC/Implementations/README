@@ -18,4 +18,4 @@ Integration rules
 - Hash/XOF adaptation is routed through auxfunc wrappers.
 
 Note
-- Frost was previously developed under the working name Venom.
+- Frost was previously developed under the working name Frost.
