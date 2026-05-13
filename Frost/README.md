@@ -58,6 +58,10 @@ CSV naming conventions:
 - `notes`: mirrors the backend implementation tag for FAST rows and uses `u16`/`u32` for REFERENCE rows
 
 
-## Experimental u16 streaming multiplication
+## Reference u16 streaming multiplication
 
-`FROST_U16_STREAMING_MATMUL=1` enables an experimental reference u16 `A^T*R` streaming path for Frost-128/192/256. It is off by default, preserves KAT byte output, and is intended for profiling cache/materialization effects before any default-path change. It does not replace the FAST AVX2 u16 path.
+For `OPT_LEVEL=REFERENCE`, Frost-128/192/256 default to a u16 streaming `A^T*R` traversal in `frodo_mul_add_sa_plus_e` (an inherited internal function name, not the algorithm name). This generates each public `A` row in the same byte order as the materialized reference path, accumulates it into the `s' * A + e` result, and avoids full `N*N` `A` materialization for encapsulation/re-encryption.
+
+`FROST_U16_MATERIALIZED_A_MATMUL=1` forces the old materialized-`A` reference u16 path for verification and regression testing. The fallback is intended to preserve byte-for-byte KAT comparisons while the streaming traversal remains the default reference implementation.
+
+This reference-only switch does not replace or affect the FAST AVX2 u16 path used by Frost-128/192/256.

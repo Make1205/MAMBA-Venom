@@ -11,6 +11,7 @@ ONLY_LEVEL=${ONLY_LEVEL:-}
 RUN_REFERENCE=${RUN_REFERENCE:-1}
 RUN_AVX2=${RUN_AVX2:-1}
 FROST_U16_STREAMING_MATMUL=${FROST_U16_STREAMING_MATMUL:-0}
+FROST_U16_MATERIALIZED_A_MATMUL=${FROST_U16_MATERIALIZED_A_MATMUL:-0}
 PROFILE_U32=${PROFILE_U32:-0}
 REPS=${REPS:-}
 
@@ -63,7 +64,7 @@ audit_backend(){
   local generation="${GENERATION_A:-AES128}"
   if [[ "$mode" == "REFERENCE" ]]; then
     use_reference=1
-    effective="frost_macrify_reference.c"
+    if [[ "$level" == "384" || "$level" == "512" ]]; then effective="frost_macrify_u32.c reference u32 path"; elif [[ "$FROST_U16_MATERIALIZED_A_MATMUL" == "1" ]]; then effective="frost_macrify_reference.c materialized u16 path"; else effective="frost_macrify_reference.c streaming u16 path"; fi
   elif [[ "$level" == "128" ]]; then
     use_avx2=1
     use_avx2_u32=1
@@ -77,7 +78,7 @@ audit_backend(){
     use_avx2_u32=1
     effective="frost_macrify_u32.c u32_full_shake4x path"
   fi
-  echo "[backend-audit] level=$level mode=$mode backend_tag=$backend USE_REFERENCE=$use_reference USE_AVX2=$use_avx2 FORCE_USE_AVX2_FOR_L256=$force USE_AVX2_U32=$use_avx2_u32 GENERATION_A=$generation effective=$effective FROST_U16_STREAMING_MATMUL=$FROST_U16_STREAMING_MATMUL"
+  echo "[backend-audit] level=$level mode=$mode backend_tag=$backend USE_REFERENCE=$use_reference USE_AVX2=$use_avx2 FORCE_USE_AVX2_FOR_L256=$force USE_AVX2_U32=$use_avx2_u32 GENERATION_A=$generation effective=$effective FROST_U16_STREAMING_MATMUL=$FROST_U16_STREAMING_MATMUL FROST_U16_MATERIALIZED_A_MATMUL=$FROST_U16_MATERIALIZED_A_MATMUL"
 }
 
 modes=()
@@ -100,15 +101,15 @@ echo "[info] Output CSV: $OUT_CSV"
 echo "[info] Running benchmarks for modes: ${modes[*]}"
 
 echo "[info] PROFILE_U32=$PROFILE_U32"
-echo "[info] FROST_U16_STREAMING_MATMUL=$FROST_U16_STREAMING_MATMUL"
+echo "[info] FROST_U16_STREAMING_MATMUL=$FROST_U16_STREAMING_MATMUL FROST_U16_MATERIALIZED_A_MATMUL=$FROST_U16_MATERIALIZED_A_MATMUL"
 
 for mode in "${modes[@]}"; do
   echo "[info] ===== Building mode: $mode ====="
   make -C "$FROST_DIR" clean >/dev/null
   if [[ "$mode" == "REFERENCE" ]]; then
-    make -C "$FROST_DIR" OPT_LEVEL=REFERENCE FROST_U16_STREAMING_MATMUL="$FROST_U16_STREAMING_MATMUL" tests >/dev/null
+    make -C "$FROST_DIR" OPT_LEVEL=REFERENCE FROST_U16_STREAMING_MATMUL="$FROST_U16_STREAMING_MATMUL" FROST_U16_MATERIALIZED_A_MATMUL="$FROST_U16_MATERIALIZED_A_MATMUL" tests >/dev/null
   else
-    make -C "$FROST_DIR" OPT_LEVEL=FAST FROST_U16_STREAMING_MATMUL="$FROST_U16_STREAMING_MATMUL" tests >/dev/null
+    make -C "$FROST_DIR" OPT_LEVEL=FAST FROST_U16_STREAMING_MATMUL="$FROST_U16_STREAMING_MATMUL" FROST_U16_MATERIALIZED_A_MATMUL="$FROST_U16_MATERIALIZED_A_MATMUL" tests >/dev/null
   fi
 
   for level in "${levels[@]}"; do

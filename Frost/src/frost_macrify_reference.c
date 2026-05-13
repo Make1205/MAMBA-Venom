@@ -67,7 +67,8 @@ int frodo_mul_add_as_plus_e(uint16_t *out, const uint16_t *s, const uint16_t *e,
         for (k = 0; k < PARAMS_NBAR; k++) {
             uint16_t sum = 0;
             for (j = 0; j < PARAMS_N; j++) {                                
-                sum += A[i*PARAMS_N + j] * s[k*PARAMS_N + j];  
+                sum = (uint16_t)((uint32_t)sum +
+                                 (uint32_t)(uint16_t)A[i*PARAMS_N + j] * (uint32_t)s[k*PARAMS_N + j]);
             }
             out[i*PARAMS_NBAR + k] += sum;                      // Adding e. No need to reduce modulo 2^15, extra bits are taken care of during packing later on.
         }
@@ -88,7 +89,7 @@ int frodo_mul_add_sa_plus_e(uint16_t *out, const uint16_t *s, uint16_t *e, const
   // Inputs: s', e' (N_BAR x N)
   // Output: out = s'*A + e' (N_BAR x N)
     int i, j, k;
-#if defined(FROST_U16_STREAMING_MATMUL)
+#if defined(FROST_U16_STREAMING_MATMUL) && !defined(FROST_U16_MATERIALIZED_A_MATMUL)
     int16_t A_row[PARAMS_N] = {0};
 #ifdef PROFILE_ALL_LEVELS
     unsigned long long prof_expand = 0, prof_mul = 0, prof_t = 0;
@@ -143,7 +144,8 @@ int frodo_mul_add_sa_plus_e(uint16_t *out, const uint16_t *s, uint16_t *e, const
         for (k = 0; k < PARAMS_NBAR; k++) {
             const uint16_t sp = s[k*PARAMS_N + j];
             for (i = 0; i < PARAMS_N; i++) {
-                out[k*PARAMS_N + i] += A_row[i] * sp;
+                out[k*PARAMS_N + i] = (uint16_t)((uint32_t)out[k*PARAMS_N + i] +
+                                                  (uint32_t)(uint16_t)A_row[i] * (uint32_t)sp);
             }
         }
 #ifdef PROFILE_ALL_LEVELS
@@ -207,7 +209,8 @@ int frodo_mul_add_sa_plus_e(uint16_t *out, const uint16_t *s, uint16_t *e, const
         for (k = 0; k < PARAMS_NBAR; k++) {
             uint16_t sum = 0;
             for (j = 0; j < PARAMS_N; j++) {
-                sum += A[j*PARAMS_N + i] * s[k*PARAMS_N + j];
+                sum = (uint16_t)((uint32_t)sum +
+                                 (uint32_t)(uint16_t)A[j*PARAMS_N + i] * (uint32_t)s[k*PARAMS_N + j]);
             }
             out[k*PARAMS_N + i] += sum;                         // Adding e. No need to reduce modulo 2^15, extra bits are taken care of during packing later on.
         }
@@ -233,7 +236,8 @@ void frodo_mul_bs(uint16_t *out, const uint16_t *b, const uint16_t *s)
         for (j = 0; j < PARAMS_NBAR; j++) {
             out[i*PARAMS_NBAR + j] = 0;
             for (k = 0; k < PARAMS_N; k++) {
-                out[i*PARAMS_NBAR + j] += b[i*PARAMS_N + k] * (int16_t)s[j*PARAMS_N + k];
+                out[i*PARAMS_NBAR + j] = (uint16_t)((uint32_t)out[i*PARAMS_NBAR + j] +
+                                                      (uint32_t)b[i*PARAMS_N + k] * (uint32_t)s[j*PARAMS_N + k]);
             }
             out[i*PARAMS_NBAR + j] = (uint32_t)(out[i*PARAMS_NBAR + j]) & ((1<<PARAMS_LOGQ)-1);
         }
@@ -251,7 +255,8 @@ void frodo_mul_add_sb_plus_e(uint16_t *out, const uint16_t *b, const uint16_t *s
         for (i = 0; i < PARAMS_NBAR; i++) {
             out[k*PARAMS_NBAR + i] = e[k*PARAMS_NBAR + i];
             for (j = 0; j < PARAMS_N; j++) {
-                out[k*PARAMS_NBAR + i] += (int16_t)s[k*PARAMS_N + j] * b[j*PARAMS_NBAR + i];
+                out[k*PARAMS_NBAR + i] = (uint16_t)((uint32_t)out[k*PARAMS_NBAR + i] +
+                                                      (uint32_t)s[k*PARAMS_N + j] * (uint32_t)b[j*PARAMS_NBAR + i]);
             }
             out[k*PARAMS_NBAR + i] = (uint32_t)(out[k*PARAMS_NBAR + i]) & ((1<<PARAMS_LOGQ)-1);
         }

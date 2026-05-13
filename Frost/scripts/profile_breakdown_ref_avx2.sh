@@ -8,6 +8,7 @@ ONLY_MODE=${ONLY_MODE:-}
 RUN_REFERENCE=${RUN_REFERENCE:-1}
 RUN_AVX2=${RUN_AVX2:-1}
 FROST_U16_STREAMING_MATMUL=${FROST_U16_STREAMING_MATMUL:-0}
+FROST_U16_MATERIALIZED_A_MATMUL=${FROST_U16_MATERIALIZED_A_MATMUL:-0}
 PROFILE_LEVELS=${PROFILE_LEVELS:-128 192 256}
 PROFILE_ITERS=${PROFILE_ITERS:-10}
 PROFILE_BENCH_SECONDS=${PROFILE_BENCH_SECONDS:-1}
@@ -31,7 +32,7 @@ audit_backend(){
   local mode="$1" level="$2" backend="$3" force="${FORCE_USE_AVX2_FOR_L256:-0}" generation="${GENERATION_A:-AES128}"
   local use_reference=0 use_avx2=0 use_avx2_u32=0 effective=""
   if [[ "$mode" == "REFERENCE" ]]; then
-    use_reference=1; effective="frost_macrify_reference.c"
+    use_reference=1; if [[ "$level" == "384" || "$level" == "512" ]]; then effective="frost_macrify_u32.c reference u32 path"; elif [[ "$FROST_U16_MATERIALIZED_A_MATMUL" == "1" ]]; then effective="frost_macrify_reference.c materialized u16 path"; else effective="frost_macrify_reference.c streaming u16 path"; fi
   elif [[ "$level" == "128" ]]; then
     use_avx2=1; use_avx2_u32=1; effective="frost_macrify.c USE_AVX2 u16 path"
   elif [[ "$level" == "192" || "$level" == "256" ]]; then
@@ -39,7 +40,7 @@ audit_backend(){
   else
     use_avx2=1; use_avx2_u32=1; effective="frost_macrify_u32.c u32_full_shake4x path"
   fi
-  echo "[backend-audit] level=$level mode=$mode backend_tag=$backend USE_REFERENCE=$use_reference USE_AVX2=$use_avx2 FORCE_USE_AVX2_FOR_L256=$force USE_AVX2_U32=$use_avx2_u32 GENERATION_A=$generation effective=$effective FROST_U16_STREAMING_MATMUL=$FROST_U16_STREAMING_MATMUL" >&2
+  echo "[backend-audit] level=$level mode=$mode backend_tag=$backend USE_REFERENCE=$use_reference USE_AVX2=$use_avx2 FORCE_USE_AVX2_FOR_L256=$force USE_AVX2_U32=$use_avx2_u32 GENERATION_A=$generation effective=$effective FROST_U16_STREAMING_MATMUL=$FROST_U16_STREAMING_MATMUL FROST_U16_MATERIALIZED_A_MATMUL=$FROST_U16_MATERIALIZED_A_MATMUL" >&2
 }
 
 modes=()
@@ -61,9 +62,9 @@ for mode in "${modes[@]}"; do
   echo "[profile] building $mode" >&2
   make -C "$FROST_DIR" clean >/dev/null
   if [[ "$mode" == "REFERENCE" ]]; then
-    make -C "$FROST_DIR" OPT_LEVEL=REFERENCE FROST_U16_STREAMING_MATMUL="$FROST_U16_STREAMING_MATMUL" EXTRA_CFLAGS='-O3 -DPROFILE_ALL_LEVELS' tests >/dev/null
+    make -C "$FROST_DIR" OPT_LEVEL=REFERENCE FROST_U16_STREAMING_MATMUL="$FROST_U16_STREAMING_MATMUL" FROST_U16_MATERIALIZED_A_MATMUL="$FROST_U16_MATERIALIZED_A_MATMUL" EXTRA_CFLAGS='-O3 -DPROFILE_ALL_LEVELS' tests >/dev/null
   else
-    make -C "$FROST_DIR" OPT_LEVEL=FAST FROST_U16_STREAMING_MATMUL="$FROST_U16_STREAMING_MATMUL" EXTRA_CFLAGS='-O3 -DPROFILE_ALL_LEVELS' tests >/dev/null
+    make -C "$FROST_DIR" OPT_LEVEL=FAST FROST_U16_STREAMING_MATMUL="$FROST_U16_STREAMING_MATMUL" FROST_U16_MATERIALIZED_A_MATMUL="$FROST_U16_MATERIALIZED_A_MATMUL" EXTRA_CFLAGS='-O3 -DPROFILE_ALL_LEVELS' tests >/dev/null
   fi
   for level in "${levels[@]}"; do
     backend=$(backend_tag "$mode" "$level")
