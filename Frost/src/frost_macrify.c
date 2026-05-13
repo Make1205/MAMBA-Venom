@@ -314,7 +314,8 @@ int frodo_mul_add_sa_plus_e(uint16_t *out, const uint16_t *s, uint16_t *e, const
             for (; q < PARAMS_N; q++) {
                 uint16_t sum = e[j*PARAMS_N + q];
                 for (p = 0; p < 8; p++) {
-                    sum += s[j*PARAMS_N + i + p] * A[p*PARAMS_N + q];
+                    sum = (uint16_t)((uint32_t)sum +
+                                     (uint32_t)s[j*PARAMS_N + i + p] * (uint32_t)A[p*PARAMS_N + q]);
                 }
                 e[j*PARAMS_N + q] = sum;
             }
