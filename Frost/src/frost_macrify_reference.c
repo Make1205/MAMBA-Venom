@@ -264,7 +264,7 @@ void frodo_mul_add_sb_plus_e(uint16_t *out, const uint16_t *b, const uint16_t *s
 }
 
 
-void frodo_add(uint16_t *out, const uint16_t *a, const uint16_t *b) 
+void frost_add(uint16_t *out, const uint16_t *a, const uint16_t *b)
 { // Add a and b
   // Inputs: a, b (N_BAR x N_BAR)
   // Output: c = a + b
@@ -275,7 +275,7 @@ void frodo_add(uint16_t *out, const uint16_t *a, const uint16_t *b)
 }
 
 
-void frodo_sub(uint16_t *out, const uint16_t *a, const uint16_t *b) 
+void frost_sub(uint16_t *out, const uint16_t *a, const uint16_t *b)
 { // Subtract a and b
   // Inputs: a, b (N_BAR x N_BAR)
   // Output: c = a - b
@@ -286,7 +286,7 @@ void frodo_sub(uint16_t *out, const uint16_t *a, const uint16_t *b)
 }
 
 
-void frodo_key_encode(uint16_t *out, const uint16_t *in) 
+void frost_key_encode(uint16_t *out, const uint16_t *in)
 { // Encoding
     unsigned int i, j, npieces_word = 8;
     unsigned int nwords = (PARAMS_NBAR*PARAMS_NBAR)/8;
@@ -306,7 +306,7 @@ void frodo_key_encode(uint16_t *out, const uint16_t *in)
 }
 
 
-void frodo_key_decode(uint16_t *out, const uint16_t *in)
+void frost_key_decode(uint16_t *out, const uint16_t *in)
 { // Decoding
     unsigned int i, j, index = 0, npieces_word = 8;
     unsigned int nwords = (PARAMS_NBAR * PARAMS_NBAR) / 8;

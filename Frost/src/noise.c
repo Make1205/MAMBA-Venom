@@ -8,7 +8,7 @@
 #include <stdint.h>
 
 
-void frodo_sample_n(uint16_t *s, const size_t n)
+void frost_sample_n(uint16_t *s, const size_t n)
 { // Fills vector s with n samples from centered binomial distribution B_eta.
   // Input: pseudo-random 16-bit values passed in s. The input is overwritten by the output.
 #ifndef PARAMS_ETA

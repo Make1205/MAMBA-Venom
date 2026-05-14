@@ -215,7 +215,7 @@ int crypto_kem_keypair(unsigned char* pk, unsigned char* sk)
         S[i] = LE_TO_UINT16(S[i]);
     }
     PROF_MARK(c_cbd);
-    frodo_sample_n(S, PARAMS_N*PARAMS_NBAR);
+    frost_sample_n(S, PARAMS_N*PARAMS_NBAR);
     PROF_ADD(c_cbd);
     PROF_MARK(c_as);
 #ifdef PROFILE_ALL_LEVELS
@@ -237,7 +237,7 @@ int crypto_kem_keypair(unsigned char* pk, unsigned char* sk)
     }
 
     PROF_MARK(c_pack);
-    frodo_pack(pk_b, PK_PACKED_BYTES, B_split, PARAMS_N*PARAMS_NBAR, PARAMS_PK_LOGP);
+    frost_pack(pk_b, PK_PACKED_BYTES, B_split, PARAMS_N*PARAMS_NBAR, PARAMS_PK_LOGP);
     PROF_ADD(c_pack);
 
     memset(sk, 0, CRYPTO_SECRETKEYBYTES);
@@ -325,7 +325,7 @@ int crypto_kem_enc(unsigned char *ct, unsigned char *ss, const unsigned char *pk
     }
     PROF_ADD(c_seed_r);
     PROF_MARK(c_cbd_r);
-    frodo_sample_n(Sp, PARAMS_N*PARAMS_NBAR);
+    frost_sample_n(Sp, PARAMS_N*PARAMS_NBAR);
     PROF_ADD(c_cbd_r);
     PROF_MARK(c_atr);
 #ifdef PROFILE_ALL_LEVELS
@@ -344,11 +344,11 @@ int crypto_kem_enc(unsigned char *ct, unsigned char *ss, const unsigned char *pk
         return 1;
     }
     PROF_MARK(c_pack);
-    frodo_pack(ct_c1, CT_C1_PACKED_BYTES, Bp_split, PARAMS_N*PARAMS_NBAR, PARAMS_U_LOGP);
+    frost_pack(ct_c1, CT_C1_PACKED_BYTES, Bp_split, PARAMS_N*PARAMS_NBAR, PARAMS_U_LOGP);
     PROF_ADD(c_pack);
 
     PROF_MARK(c_unpack_pk);
-    frodo_unpack(B_split, PARAMS_N*PARAMS_NBAR, pk_b, PK_PACKED_BYTES, PARAMS_PK_LOGP);
+    frost_unpack(B_split, PARAMS_N*PARAMS_NBAR, pk_b, PK_PACKED_BYTES, PARAMS_PK_LOGP);
     PROF_ADD(c_unpack_pk);
     if (frodo_reconstruct_dithered_profile(B_norm, B_split, PARAMS_N*PARAMS_NBAR, pk_seedA, BYTES_SEED_A, DITHER_DOMAIN_PK, PARAMS_PK_LOGP, &c_dpk, &c_recon_pk) != 0) {
         return 1;
@@ -358,14 +358,14 @@ int crypto_kem_enc(unsigned char *ct, unsigned char *ss, const unsigned char *pk
     PROF_ADD(c_btr);
 
     PROF_MARK(c_msg);
-    frodo_key_encode(C_enc, (uint16_t*)mu);
-    frodo_add(C_enc, V_raw, C_enc);
+    frost_key_encode(C_enc, (uint16_t*)mu);
+    frost_add(C_enc, V_raw, C_enc);
     PROF_ADD(c_msg);
     if (frodo_quantize_dithered_profile(C_split, C_enc, PARAMS_NBAR*PARAMS_NBAR, salt, BYTES_SALT, DITHER_DOMAIN_V, PARAMS_V_LOGP, &c_dv, &c_qv_apply) != 0) {
         return 1;
     }
     PROF_MARK(c_pack);
-    frodo_pack(ct_c2, CT_C2_PACKED_BYTES, C_split, PARAMS_NBAR*PARAMS_NBAR, PARAMS_V_LOGP);
+    frost_pack(ct_c2, CT_C2_PACKED_BYTES, C_split, PARAMS_NBAR*PARAMS_NBAR, PARAMS_V_LOGP);
     PROF_ADD(c_pack);
 
     memcpy(&ct[CRYPTO_CIPHERTEXTBYTES - BYTES_SALT], salt, BYTES_SALT);
@@ -457,12 +457,12 @@ int crypto_kem_dec(unsigned char *ss, const unsigned char *ct, const unsigned ch
     for (size_t i = 0; i < PARAMS_N * PARAMS_NBAR; i++) {
         S[i] = LE_TO_UINT16(S[i]);
     }
-    frodo_sample_n(S, PARAMS_N*PARAMS_NBAR);
+    frost_sample_n(S, PARAMS_N*PARAMS_NBAR);
     PROF_ADD(c_s_seed);
 
     PROF_MARK(c_unct);
-    frodo_unpack(Bp_split, PARAMS_N*PARAMS_NBAR, ct_c1, CT_C1_PACKED_BYTES, PARAMS_U_LOGP);
-    frodo_unpack(C_split, PARAMS_NBAR*PARAMS_NBAR, ct_c2, CT_C2_PACKED_BYTES, PARAMS_V_LOGP);
+    frost_unpack(Bp_split, PARAMS_N*PARAMS_NBAR, ct_c1, CT_C1_PACKED_BYTES, PARAMS_U_LOGP);
+    frost_unpack(C_split, PARAMS_NBAR*PARAMS_NBAR, ct_c2, CT_C2_PACKED_BYTES, PARAMS_V_LOGP);
     PROF_ADD(c_unct);
     if (frodo_reconstruct_dithered_profile(Bp_norm, Bp_split, PARAMS_N*PARAMS_NBAR, salt, BYTES_SALT, DITHER_DOMAIN_U, PARAMS_U_LOGP, &c_du, &c_recon_u) != 0 ||
         frodo_reconstruct_dithered_profile(C_norm, C_split, PARAMS_NBAR*PARAMS_NBAR, salt, BYTES_SALT, DITHER_DOMAIN_V, PARAMS_V_LOGP, &c_dv, &c_recon_v) != 0) {
@@ -472,8 +472,8 @@ int crypto_kem_dec(unsigned char *ss, const unsigned char *ct, const unsigned ch
     frodo_mul_bs(W, Bp_norm, S);
     PROF_ADD(c_stu);
     PROF_MARK(c_mudec);
-    frodo_sub(W, C_norm, W);
-    frodo_key_decode((uint16_t*)muprime, W);
+    frost_sub(W, C_norm, W);
+    frost_key_decode((uint16_t*)muprime, W);
     PROF_ADD(c_mudec);
 
     PROF_MARK(c_g);
@@ -491,7 +491,7 @@ int crypto_kem_dec(unsigned char *ss, const unsigned char *ct, const unsigned ch
     }
     PROF_ADD(c_seed_r);
     PROF_MARK(c_cbd_r);
-    frodo_sample_n(Sp, PARAMS_N*PARAMS_NBAR);
+    frost_sample_n(Sp, PARAMS_N*PARAMS_NBAR);
     PROF_ADD(c_cbd_r);
     PROF_MARK(c_reenc_atr);
 #ifdef PROFILE_ALL_LEVELS
@@ -511,7 +511,7 @@ int crypto_kem_dec(unsigned char *ss, const unsigned char *ct, const unsigned ch
     }
 
     PROF_MARK(c_reenc_pk_unpack);
-    frodo_unpack(B_split, PARAMS_N*PARAMS_NBAR, pk_b, PK_PACKED_BYTES, PARAMS_PK_LOGP);
+    frost_unpack(B_split, PARAMS_N*PARAMS_NBAR, pk_b, PK_PACKED_BYTES, PARAMS_PK_LOGP);
     PROF_ADD(c_reenc_pk_unpack);
     if (frodo_reconstruct_dithered_profile(B_norm, B_split, PARAMS_N*PARAMS_NBAR, pk_seedA, BYTES_SEED_A, DITHER_DOMAIN_PK, PARAMS_PK_LOGP, &c_reenc_dpk, &c_reenc_pk_recon) != 0) {
         return 1;
@@ -520,8 +520,8 @@ int crypto_kem_dec(unsigned char *ss, const unsigned char *ct, const unsigned ch
     frodo_mul_add_sb_plus_e(CC, B_norm, Sp, E_zero_nbar);
     PROF_ADD(c_reenc_btr);
     PROF_MARK(c_reenc_qv_apply);
-    frodo_key_encode(W, (uint16_t*)muprime);
-    frodo_add(CC, CC, W);
+    frost_key_encode(W, (uint16_t*)muprime);
+    frost_add(CC, CC, W);
     PROF_ADD(c_reenc_qv_apply);
     if (frodo_quantize_dithered_profile(CC_split, CC, PARAMS_NBAR*PARAMS_NBAR, salt, BYTES_SALT, DITHER_DOMAIN_V, PARAMS_V_LOGP, &c_reenc_dv, &c_reenc_qv_apply) != 0) {
         return 1;

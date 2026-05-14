@@ -22,8 +22,8 @@ Completed: moved eFrost/ to `legacy/eFrost/` for provenance-only retention becau
 
 ## Phase 3A
 
-Rename low-risk internal helpers such as frodo_pack, frodo_unpack,
-frodo_sample_n, frodo_add, frodo_sub, frodo_key_encode, and frodo_key_decode.
+Completed: renamed low-risk internal helpers such as frost_pack, frost_unpack,
+frost_sample_n, frost_add, frost_sub, frost_key_encode, and frost_key_decode.
 
 ## Phase 3B
 
