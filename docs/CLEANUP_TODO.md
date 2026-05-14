@@ -10,7 +10,7 @@ Completed: moved stale Frost/KAT upstream FrodoKEM .rsp artifacts to `legacy/ups
 
 ## Phase 1C
 
-Move Frost/python3 old FrodoKEM reference tooling to legacy/provenance-only.
+Completed: moved Frost/python3 old FrodoKEM reference tooling to `legacy/upstream-python/` for provenance-only retention.
 
 ## Phase 1D
 
