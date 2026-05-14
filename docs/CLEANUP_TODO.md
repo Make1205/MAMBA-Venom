@@ -27,10 +27,10 @@ frost_sample_n, frost_add, frost_sub, frost_key_encode, and frost_key_decode.
 
 ## Phase 3B
 
-Rename matrix and dither helpers such as frodo_mul_add_as_plus_e,
-frodo_mul_add_sa_plus_e, frodo_mul_bs, frodo_mul_add_sb_plus_e,
-frodo_expand_dither_local, frodo_quantize_dithered_profile, and
-frodo_reconstruct_dithered_profile.
+Completed: renamed matrix and dither helpers such as frost_mul_add_as_plus_e,
+frost_mul_add_sa_plus_e, frost_mul_bs, frost_mul_add_sb_plus_e,
+frost_expand_dither_local, frost_quantize_dithered_profile, and
+frost_reconstruct_dithered_profile.
 
 ## Phase 4
 
