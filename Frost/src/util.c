@@ -1,7 +1,10 @@
 /********************************************************************************************
-* FrodoKEM: Learning with Errors Key Encapsulation
+* MAMBA-Frost: unstructured LWQ-Z key encapsulation mechanism.
 *
-* Abstract: additional functions for FrodoKEM
+* Abstract: additional functions for MAMBA-Frost.
+*
+* Derived in part from an unstructured LWE KEM implementation framework; retained
+* license and provenance notices apply.
 *********************************************************************************************/
 
 #include <string.h>
@@ -10,7 +13,7 @@
 #define min(x, y) (((x) < (y)) ? (x) : (y))
 
 
-void frodo_pack(unsigned char *out, const size_t outlen, const uint16_t *in, const size_t inlen, const unsigned char lsb) 
+void frost_pack(unsigned char *out, const size_t outlen, const uint16_t *in, const size_t inlen, const unsigned char lsb)
 { // Pack the input uint16 vector into a char output vector, copying lsb bits from each input element. 
   // If inlen * lsb / 8 > outlen, only outlen * 8 bits are copied.
     memset(out, 0, outlen);
@@ -59,7 +62,7 @@ void frodo_pack(unsigned char *out, const size_t outlen, const uint16_t *in, con
 }
 
 
-void frodo_unpack(uint16_t *out, const size_t outlen, const unsigned char *in, const size_t inlen, const unsigned char lsb) 
+void frost_unpack(uint16_t *out, const size_t outlen, const unsigned char *in, const size_t inlen, const unsigned char lsb)
 { // Unpack the input char vector into a uint16_t output vector, copying lsb bits
   // for each output element from input. outlen must be at least ceil(inlen * 8 / lsb).
     memset(out, 0, outlen * sizeof(uint16_t));

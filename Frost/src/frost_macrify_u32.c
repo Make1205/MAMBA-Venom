@@ -375,8 +375,8 @@ static int mul_AT_times_R_u32_fast(uint32_t *out, const int32_t *s, const uint32
         __m256i rvec[16];
 #endif
         for (size_t b = 0; b < cnt; b++) {
-            const size_t i = i0 + b;
 #if defined(USE_AVX2_U32)
+            const size_t i = i0 + b;
             rvec[b] = _mm256_set_epi32(
                 s[7*(size_t)PARAMS_N + i], s[6*(size_t)PARAMS_N + i], s[5*(size_t)PARAMS_N + i], s[4*(size_t)PARAMS_N + i],
                 s[3*(size_t)PARAMS_N + i], s[2*(size_t)PARAMS_N + i], s[1*(size_t)PARAMS_N + i], s[0*(size_t)PARAMS_N + i]
@@ -384,8 +384,8 @@ static int mul_AT_times_R_u32_fast(uint32_t *out, const int32_t *s, const uint32
 #endif
         }
         for (size_t q = 0; q < (size_t)PARAMS_N; q += jblk) {
-            size_t jb = ((size_t)PARAMS_N - q >= jblk) ? jblk : ((size_t)PARAMS_N - q);
 #if defined(USE_AVX2_U32)
+            size_t jb = ((size_t)PARAMS_N - q >= jblk) ? jblk : ((size_t)PARAMS_N - q);
             __m256i u0 = _mm256_loadu_si256((const __m256i *)(acc + (q + 0)*(size_t)PARAMS_NBAR));
             __m256i u1 = _mm256_setzero_si256(), u2 = _mm256_setzero_si256(), u3 = _mm256_setzero_si256();
             if (jb > 1) u1 = _mm256_loadu_si256((const __m256i *)(acc + (q + 1)*(size_t)PARAMS_NBAR));

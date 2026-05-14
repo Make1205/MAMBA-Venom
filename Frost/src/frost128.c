@@ -1,8 +1,11 @@
 /********************************************************************************************
-* FrodoKEM: Learning with Errors Key Encapsulation
+* MAMBA-Frost: unstructured LWQ-Z key encapsulation mechanism.
 *
-* Abstract: functions for Frost-128
-*           Instantiates "frost_macrify.c" with the necessary matrix arithmetic functions
+* Abstract: functions for MAMBA-Frost-128.
+*           Instantiates "frost_macrify.c" with the necessary matrix arithmetic functions.
+*
+* Derived in part from an unstructured LWE KEM implementation framework; retained
+* license and provenance notices apply.
 *********************************************************************************************/
 
 #include "api_frost128.h"
@@ -28,7 +31,7 @@
 #define PARAMS_V_LOGP  8
 
 #if (PARAMS_NBAR % 8 != 0)
-#error You have modified the cryptographic parameters. FrodoKEM assumes PARAMS_NBAR is a multiple of 8.
+#error You have modified the cryptographic parameters. MAMBA-Frost requires PARAMS_NBAR to be a multiple of 8.
 #endif
 
 // Selecting SHAKE XOF function for the KEM and noise sampling

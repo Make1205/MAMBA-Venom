@@ -1,9 +1,14 @@
-Frost: Plain-LWE KEM with Public Double-Dither Quantization
-===========================================================
+MAMBA-Frost / Frost.KEM: Plain-LWE KEM with Public Double-Dither Quantization
+=============================================================================
 
-`Frost` is a C/Python implementation repository for a plain-LWE key encapsulation mechanism.
-The implemented core mechanism uses **public two-layer dither quantization**,
-including the ephemeral variant in `eFrost`.
+`MAMBA-Frost` / `Frost.KEM` is a plain-LWE key encapsulation mechanism whose
+current main implementation lives in [`Frost/`](Frost/). The implemented core
+mechanism uses **public two-layer dither quantization**.
+
+Default builds, KAT generation, benchmark orchestration, and paper-data runs are
+intended to use [`Frost/`](Frost/) as the active implementation directory.
+Historical artifacts outside that path are cleanup candidates and are not part
+of the default build, KAT, benchmark, or paper-data workflow.
 
 ## Security level variants
 
@@ -26,10 +31,20 @@ Current C core supports all five `MAMBA-Frost-128/192/256/384/512` profiles.
 
 ## Repository contents
 
-- [`common/`](common/): shared AES/SHA3/random utilities.
-- [`Frost/`](Frost/): standard variant implementation and tests.
-- [`eFrost/`](eFrost/): ephemeral variant implementation and tests.
+- [`Frost/`](Frost/): current `MAMBA-Frost` / `Frost.KEM` implementation, tests,
+  KAT generation targets, and benchmark scripts.
+- [`common/`](common/): shared AES/SHA3/random utilities used by the C build.
+- [`docs/CLEANUP_TODO.md`](docs/CLEANUP_TODO.md): staged identity-cleanup follow-up
+  items for legacy artifacts that are not part of the current default workflow.
 - [`LICENSE`](LICENSE): license text.
+
+## Provenance and license notes
+
+The implementation inherits parts of an unstructured LWE KEM code framework and
+retains the corresponding license notices. Legacy upstream artifacts and tooling
+that still need separate cleanup are tracked in [`docs/CLEANUP_TODO.md`](docs/CLEANUP_TODO.md)
+so their provenance can be preserved while the public project identity remains
+focused on `MAMBA-Frost` / `Frost.KEM`.
 
 ## Paper
 

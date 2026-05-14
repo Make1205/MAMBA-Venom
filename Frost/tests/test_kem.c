@@ -1,7 +1,10 @@
 /********************************************************************************************
-* FrodoKEM: Learning with Errors Key Encapsulation
+* MAMBA-Frost: unstructured LWQ-Z key encapsulation mechanism.
 *
-* Abstract: benchmarking/testing KEM scheme
+* Abstract: benchmarking/testing KEM scheme.
+*
+* Derived in part from an unstructured LWE KEM test framework; retained license
+* and provenance notices apply.
 *********************************************************************************************/
 
 #include "../../common/random/random.h"
@@ -42,7 +45,7 @@ static int kem_test(const char *named_parameters, int iterations)
     #ifdef DO_VALGRIND_CHECK
         if (!RUNNING_ON_VALGRIND) {
             fprintf(stderr, "This test can only usefully be run inside valgrind.\n");
-            fprintf(stderr, "valgrind frodo640/test_KEM (or frodo976 or frodo256)\n");
+            fprintf(stderr, "valgrind Frost/frost128/test_KEM (or frost192 or frost256)\n");
             exit(1);
         }
     #endif
