@@ -18,7 +18,7 @@ Completed: moved Frost/VisualStudio old FrodoKEM project files to `legacy/visual
 
 ## Phase 2
 
-Delete or move eFrost/ to legacy if it is not a current formal scheme.
+Completed: moved eFrost/ to `legacy/eFrost/` for provenance-only retention because it is not a current formal scheme.
 
 ## Phase 3A
 
