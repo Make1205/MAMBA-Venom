@@ -1,7 +1,10 @@
 /********************************************************************************************
-* FrodoKEM: Learning with Errors Key Encapsulation
+* MAMBA-Frost: unstructured LWQ-Z key encapsulation mechanism.
 *
-* Abstract: Key Encapsulation Mechanism (KEM) based on Frodo
+* Abstract: key encapsulation mechanism (KEM).
+*
+* Derived in part from an unstructured LWE KEM implementation framework; retained
+* license and provenance notices apply.
 *********************************************************************************************/
 
 #include <stdlib.h>
@@ -177,7 +180,7 @@ static int __attribute__((unused)) frost_reconstruct_dithered_local(uint16_t *no
 }
 
 int crypto_kem_keypair(unsigned char* pk, unsigned char* sk)
-{ // FrodoKEM's key generation with public dithered quantization
+{ // MAMBA-Frost key generation with public dithered quantization
     PROF_DECL();
     unsigned long long __attribute__((unused)) c_rand = 0, c_seedexp = 0, c_cbd = 0, c_as = 0, c_a_expand = 0, c_a_mul = 0, c_pk_dither = 0, c_pk_quant = 0, c_pack = 0, c_hash = 0, c_total = 0;
     PROF_BEGIN();
@@ -271,7 +274,7 @@ int crypto_kem_keypair(unsigned char* pk, unsigned char* sk)
 
 
 int crypto_kem_enc(unsigned char *ct, unsigned char *ss, const unsigned char *pk)
-{ // FrodoKEM's key encapsulation with public dithered quantization
+{ // MAMBA-Frost key encapsulation with public dithered quantization
     PROF_DECL();
     unsigned long long __attribute__((unused)) c_total = 0, c_hpk = 0, c_msg_sample = 0, c_g = 0, c_seed_r = 0, c_cbd_r = 0, c_atr = 0, c_a_expand = 0, c_a_mul = 0, c_unpack_pk = 0, c_dpk = 0, c_recon_pk = 0, c_btr = 0, c_msg = 0, c_du = 0, c_dv = 0, c_qu_apply = 0, c_qv_apply = 0, c_pack = 0, c_hash_ss = 0;
     PROF_BEGIN();
@@ -404,7 +407,7 @@ int crypto_kem_enc(unsigned char *ct, unsigned char *ss, const unsigned char *pk
 
 
 int crypto_kem_dec(unsigned char *ss, const unsigned char *ct, const unsigned char *sk)
-{ // FrodoKEM's key decapsulation with public dithered quantization
+{ // MAMBA-Frost key decapsulation with public dithered quantization
     PROF_DECL();
     unsigned long long __attribute__((unused)) c_total = 0, c_unct = 0, c_du = 0, c_dv = 0, c_recon_u = 0, c_recon_v = 0, c_stu = 0, c_mudec = 0, c_s_seed = 0, c_g = 0, c_seed_r = 0, c_cbd_r = 0, c_reenc_atr = 0, c_reenc_a_expand = 0, c_reenc_a_mul = 0, c_reenc_btr = 0, c_reenc_du = 0, c_reenc_dv = 0, c_reenc_qu_apply = 0, c_reenc_pk_unpack = 0, c_reenc_dpk = 0, c_reenc_pk_recon = 0, c_reenc_qv_apply = 0, c_ctcmp = 0, c_hashss = 0;
     PROF_BEGIN();

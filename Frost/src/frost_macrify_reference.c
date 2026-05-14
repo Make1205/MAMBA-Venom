@@ -1,7 +1,10 @@
 /********************************************************************************************
-* FrodoKEM: Learning with Errors Key Encapsulation
+* MAMBA-Frost: unstructured LWQ-Z key encapsulation mechanism.
 *
-* Abstract: matrix arithmetic functions used by the KEM
+* Abstract: reference matrix arithmetic functions used by the KEM.
+*
+* Derived in part from an unstructured LWE KEM implementation framework; retained
+* license and provenance notices apply.
 *********************************************************************************************/
 
 #if defined(USE_AES128_FOR_A)

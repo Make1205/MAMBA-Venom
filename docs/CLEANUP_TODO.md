@@ -34,4 +34,4 @@ frost_reconstruct_dithered_profile.
 
 ## Phase 4
 
-Final identity audit, KAT, correctness, and benchmark.
+Completed: final identity audit, source/public wording provenance cleanup, KAT, correctness, and benchmark validation.

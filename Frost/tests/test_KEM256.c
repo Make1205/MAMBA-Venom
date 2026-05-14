@@ -1,7 +1,10 @@
 /********************************************************************************************
-* FrodoKEM: Learning with Errors Key Encapsulation
+* MAMBA-Frost: unstructured LWQ-Z key encapsulation mechanism.
 *
-* Abstract: setting parameters to test Frost-256
+* Abstract: setting parameters to test MAMBA-Frost-256.
+*
+* Derived in part from an unstructured LWE KEM test framework; retained license
+* and provenance notices apply.
 *********************************************************************************************/
 
 #include <stdio.h>

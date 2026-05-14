@@ -1,7 +1,10 @@
 /********************************************************************************************
-* FrodoKEM: Learning with Errors Key Encapsulation
+* MAMBA-Frost: unstructured LWQ-Z key encapsulation mechanism.
 *
-* Abstract: additional functions for FrodoKEM
+* Abstract: additional functions for MAMBA-Frost.
+*
+* Derived in part from an unstructured LWE KEM implementation framework; retained
+* license and provenance notices apply.
 *********************************************************************************************/
 
 #include <string.h>

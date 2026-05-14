@@ -1,11 +1,14 @@
 /********************************************************************************************
-* FrodoKEM: Learning with Errors Key Encapsulation
+* MAMBA-Frost: unstructured LWQ-Z key encapsulation mechanism.
 *
-* Abstract: header for internal functions
+* Abstract: header for internal functions.
+*
+* Derived in part from an unstructured LWE KEM implementation framework; retained
+* license and provenance notices apply.
 *********************************************************************************************/
 
-#ifndef _FRODO_MACRIFY_H_
-#define _FRODO_MACRIFY_H_
+#ifndef _FROST_MACRIFY_H_
+#define _FROST_MACRIFY_H_
 
 #include <stddef.h>
 #include <stdint.h>
