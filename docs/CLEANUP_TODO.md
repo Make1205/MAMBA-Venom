@@ -6,7 +6,7 @@ paper-data workflow, which is centered on `Frost/`.
 
 ## Phase 1B
 
-Move or remove stale Frost/KAT upstream FrodoKEM .rsp artifacts.
+Completed: moved stale Frost/KAT upstream FrodoKEM .rsp artifacts to `legacy/upstream-frodo-kat/` for provenance-only retention.
 
 ## Phase 1C
 
