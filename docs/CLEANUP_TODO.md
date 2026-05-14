@@ -14,7 +14,7 @@ Completed: moved Frost/python3 old FrodoKEM reference tooling to `legacy/upstrea
 
 ## Phase 1D
 
-Move Frost/VisualStudio old FrodoKEM project files to legacy or mark unsupported.
+Completed: moved Frost/VisualStudio old FrodoKEM project files to `legacy/visualstudio-upstream/` for provenance-only retention as unsupported legacy project files.
 
 ## Phase 2
 
