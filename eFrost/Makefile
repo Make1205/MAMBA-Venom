@@ -120,18 +120,18 @@ objs/random/random.o: ../common/random/random.c ../common/random/random.h
 	$(CC) -c $(CFLAGS) ../common/random/random.c -o objs/random/random.o
 RAND_OBJS := objs/random/random.o
 
-# KEM_FRODO
-KEM_FRODO640_OBJS := $(addprefix objs/, frost1.o util.o)
-KEM_FRODO640_HEADERS := $(addprefix src/, api_frost1.h config.h frost_macrify.h)
-$(KEM_FRODO640_OBJS): $(KEM_FRODO640_HEADERS) $(addprefix src/, ekem.c noise.c util.c)
+# KEM_FROST
+KEM_FROST640_OBJS := $(addprefix objs/, frost1.o util.o)
+KEM_FROST640_HEADERS := $(addprefix src/, api_frost1.h config.h frost_macrify.h)
+$(KEM_FROST640_OBJS): $(KEM_FROST640_HEADERS) $(addprefix src/, ekem.c noise.c util.c)
 
-KEM_FRODO976_OBJS := $(addprefix objs/, frost3.o util.o)
-KEM_FRODO976_HEADERS := $(addprefix src/, api_frost3.h config.h frost_macrify.h)
-$(KEM_FRODO976_OBJS): $(KEM_FRODO976_HEADERS) $(addprefix src/, ekem.c noise.c util.c)
+KEM_FROST976_OBJS := $(addprefix objs/, frost3.o util.o)
+KEM_FROST976_HEADERS := $(addprefix src/, api_frost3.h config.h frost_macrify.h)
+$(KEM_FROST976_OBJS): $(KEM_FROST976_HEADERS) $(addprefix src/, ekem.c noise.c util.c)
 
-KEM_FRODO1344_OBJS := $(addprefix objs/, frost5.o util.o)
-KEM_FRODO1344_HEADERS := $(addprefix src/, api_frost5.h config.h frost_macrify.h)
-$(KEM_FRODO1344_OBJS): $(KEM_FRODO1344_HEADERS) $(addprefix src/, ekem.c noise.c util.c)
+KEM_FROST1344_OBJS := $(addprefix objs/, frost5.o util.o)
+KEM_FROST1344_HEADERS := $(addprefix src/, api_frost5.h config.h frost_macrify.h)
+$(KEM_FROST1344_OBJS): $(KEM_FROST1344_HEADERS) $(addprefix src/, ekem.c noise.c util.c)
 
 # AES
 ifeq "$(USE_OPENSSL)" "FALSE" 
@@ -175,19 +175,19 @@ SHAKEx4_OBJS := objs/sha3/fips202x4.o objs/sha3/keccak4x/KeccakP-1600-times4-SIM
 endif
 endif
 
-lib640: $(KEM_FRODO640_OBJS) $(RAND_OBJS) $(AES_OBJS) $(SHAKE_OBJS) $(SHAKEx4_OBJS)
+lib640: $(KEM_FROST640_OBJS) $(RAND_OBJS) $(AES_OBJS) $(SHAKE_OBJS) $(SHAKEx4_OBJS)
 	rm -rf frost1
 	mkdir frost1
 	$(AR) frost1/libfrost.a $^
 	$(RANLIB) frost1/libfrost.a
 
-lib976: $(KEM_FRODO976_OBJS) $(RAND_OBJS) $(AES_OBJS) $(SHAKE_OBJS) $(SHAKEx4_OBJS)
+lib976: $(KEM_FROST976_OBJS) $(RAND_OBJS) $(AES_OBJS) $(SHAKE_OBJS) $(SHAKEx4_OBJS)
 	rm -rf frost3
 	mkdir frost3
 	$(AR) frost3/libfrost.a $^
 	$(RANLIB) frost3/libfrost.a
 
-lib1344: $(KEM_FRODO1344_OBJS) $(RAND_OBJS) $(AES_OBJS) $(SHAKE_OBJS) $(SHAKEx4_OBJS)
+lib1344: $(KEM_FROST1344_OBJS) $(RAND_OBJS) $(AES_OBJS) $(SHAKE_OBJS) $(SHAKEx4_OBJS)
 	rm -rf frost5
 	mkdir frost5
 	$(AR) frost5/libfrost.a $^
@@ -198,15 +198,15 @@ tests: lib640 lib976 lib1344 tests/ds_benchmark.h
 	$(CC) $(CFLAGS) -L./frost3 tests/test_KEM976.c -lfrost $(LDFLAGS) -o frost3/test_KEM $(ARM_SETTING)
 	$(CC) $(CFLAGS) -L./frost5 tests/test_KEM1344.c -lfrost $(LDFLAGS) -o frost5/test_KEM $(ARM_SETTING)
 
-lib640_for_KATs: $(KEM_FRODO640_OBJS) $(AES_OBJS) $(SHAKE_OBJS) $(SHAKEx4_OBJS)
+lib640_for_KATs: $(KEM_FROST640_OBJS) $(AES_OBJS) $(SHAKE_OBJS) $(SHAKEx4_OBJS)
 	$(AR) frost1/libfrost_for_testing.a $^
 	$(RANLIB) frost1/libfrost_for_testing.a
 
-lib976_for_KATs: $(KEM_FRODO976_OBJS) $(AES_OBJS) $(SHAKE_OBJS) $(SHAKEx4_OBJS)
+lib976_for_KATs: $(KEM_FROST976_OBJS) $(AES_OBJS) $(SHAKE_OBJS) $(SHAKEx4_OBJS)
 	$(AR) frost3/libfrost_for_testing.a $^
 	$(RANLIB) frost3/libfrost_for_testing.a
 
-lib1344_for_KATs: $(KEM_FRODO1344_OBJS) $(AES_OBJS) $(SHAKE_OBJS) $(SHAKEx4_OBJS)
+lib1344_for_KATs: $(KEM_FROST1344_OBJS) $(AES_OBJS) $(SHAKE_OBJS) $(SHAKEx4_OBJS)
 	$(AR) frost5/libfrost_for_testing.a $^
 	$(RANLIB) frost5/libfrost_for_testing.a
 

@@ -47,13 +47,5 @@ uint16_t CDF_TABLE_LEN = 7;
 #if defined(USE_REFERENCE)
 #include "frost_macrify_reference.c"
 #else
-// By default, keep AVX2 disabled for this parameter set due to historical
-// runtime stability issues under aggressive optimization.
-// Define FORCE_USE_AVX2_FOR_L256 to benchmark/enable AVX2 on Level-192/256.
-#if !defined(FORCE_USE_AVX2_FOR_L256)
-#if defined(USE_AVX2)
-#undef USE_AVX2
-#endif
-#endif
 #include "frost_macrify.c"
 #endif

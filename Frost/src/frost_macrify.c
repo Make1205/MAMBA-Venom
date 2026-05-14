@@ -28,6 +28,9 @@ int frodo_mul_add_as_plus_e(uint16_t *out, const uint16_t *s, const uint16_t *e,
   // Output: out = A*s + e (N x N_BAR)
     int i, j, k;
     ALIGN_HEADER(32) int16_t a_row[4*PARAMS_N] ALIGN_FOOTER(32) = {0};
+#ifdef PROFILE_ALL_LEVELS
+    unsigned long long prof_expand = 0, prof_mul = 0, prof_t = 0;
+#endif
 
     for (i = 0; i < (PARAMS_N*PARAMS_NBAR); i += 2) {    
         *((uint32_t*)&out[i]) = *((uint32_t*)&e[i]);
@@ -53,6 +56,9 @@ int frodo_mul_add_as_plus_e(uint16_t *out, const uint16_t *s, const uint16_t *e,
     }
 
     for (i = 0; i < PARAMS_N; i += 4) {
+#ifdef PROFILE_ALL_LEVELS
+        prof_t = prof_all_enabled() ? prof_now_cycles() : 0;
+#endif
         for (j = 0; j < PARAMS_N; j += PARAMS_STRIPE_STEP) {    // Go through A, four rows at a time
             a_row_temp[j + 0*PARAMS_N] = UINT16_TO_LE(i+0);     // Loading values in the little-endian order                                
             a_row_temp[j + 1*PARAMS_N] = UINT16_TO_LE(i+1);
@@ -71,6 +77,9 @@ int frodo_mul_add_as_plus_e(uint16_t *out, const uint16_t *s, const uint16_t *e,
     uint16_t* seed_A_origin = (uint16_t*)&seed_A_separated;
     memcpy(&seed_A_separated[2], seed_A, BYTES_SEED_A);
     for (i = 0; i < PARAMS_N; i += 4) {
+#ifdef PROFILE_ALL_LEVELS
+        prof_t = prof_all_enabled() ? prof_now_cycles() : 0;
+#endif
         seed_A_origin[0] = UINT16_TO_LE(i + 0);
         shake128((unsigned char*)(a_row + 0*PARAMS_N), (unsigned long long)(2*PARAMS_N), seed_A_separated, 2 + BYTES_SEED_A);
         seed_A_origin[0] = UINT16_TO_LE(i + 1);
@@ -93,6 +102,9 @@ int frodo_mul_add_as_plus_e(uint16_t *out, const uint16_t *s, const uint16_t *e,
     memcpy(&seed_A_separated_2[2], seed_A, BYTES_SEED_A);
     memcpy(&seed_A_separated_3[2], seed_A, BYTES_SEED_A);
     for (i = 0; i < PARAMS_N; i += 4) {
+#ifdef PROFILE_ALL_LEVELS
+        prof_t = prof_all_enabled() ? prof_now_cycles() : 0;
+#endif
         seed_A_origin_0[0] = UINT16_TO_LE(i + 0);
         seed_A_origin_1[0] = UINT16_TO_LE(i + 1);
         seed_A_origin_2[0] = UINT16_TO_LE(i + 2);
@@ -104,6 +116,10 @@ int frodo_mul_add_as_plus_e(uint16_t *out, const uint16_t *s, const uint16_t *e,
         for (k = 0; k < 4 * PARAMS_N; k++) {
             a_row[k] = LE_TO_UINT16(a_row[k]);
         }
+#ifdef PROFILE_ALL_LEVELS
+        prof_expand += prof_all_enabled() ? prof_now_cycles() - prof_t : 0;
+        prof_t = prof_all_enabled() ? prof_now_cycles() : 0;
+#endif
         for (k = 0; k < PARAMS_NBAR; k++) {
             uint16_t sum[4] = {0};
             for (j = 0; j < PARAMS_N; j++) {                    // Matrix-vector multiplication            
@@ -118,7 +134,14 @@ int frodo_mul_add_as_plus_e(uint16_t *out, const uint16_t *s, const uint16_t *e,
             out[(i+1)*PARAMS_NBAR + k] += sum[1];
             out[(i+3)*PARAMS_NBAR + k] += sum[3];
         }
+#ifdef PROFILE_ALL_LEVELS
+        prof_mul += prof_all_enabled() ? prof_now_cycles() - prof_t : 0;
+#endif
     }
+#ifdef PROFILE_ALL_LEVELS
+    frost_prof_mat_add_expand(prof_expand);
+    frost_prof_mat_add_mul(prof_mul);
+#endif
     
 #if defined(USE_AES128_FOR_A)
     AES128_free_schedule(aes_key_schedule);
@@ -135,6 +158,9 @@ int frodo_mul_add_sa_plus_e(uint16_t *out, const uint16_t *s, uint16_t *e, const
   // T. Schneider, C. van Vredendaal, "The Matrix Reloaded: Multiplication Strategies in FrodoKEM". https://eprint.iacr.org/2021/711
     int i, j, q, p; 
     ALIGN_HEADER(32) uint16_t A[PARAMS_N*8] ALIGN_FOOTER(32) = {0};
+#ifdef PROFILE_ALL_LEVELS
+    unsigned long long prof_expand = 0, prof_mul = 0, prof_t = 0;
+#endif
 
 #if defined(USE_AES128_FOR_A)
 #if !defined(USE_OPENSSL)
@@ -162,6 +188,9 @@ int frodo_mul_add_sa_plus_e(uint16_t *out, const uint16_t *s, uint16_t *e, const
 
     // Start matrix multiplication
     for (i = 0; i < PARAMS_N; i+=8) {
+#ifdef PROFILE_ALL_LEVELS
+        prof_t = prof_all_enabled() ? prof_now_cycles() : 0;
+#endif
         // Generate 8 rows of A on-the-fly using AES
         for (q = 0; q < 8; q++) {
             for (p = 0; p < PARAMS_N; p+=8) {
@@ -183,6 +212,9 @@ int frodo_mul_add_sa_plus_e(uint16_t *out, const uint16_t *s, uint16_t *e, const
 
     // Start matrix multiplication
     for (i = 0; i < PARAMS_N; i+=8) {
+#ifdef PROFILE_ALL_LEVELS
+        prof_t = prof_all_enabled() ? prof_now_cycles() : 0;
+#endif
         seed_A_origin[0] = UINT16_TO_LE(i + 0);
         shake128((unsigned char*)(A + 0*PARAMS_N), (unsigned long long)(2*PARAMS_N), seed_A_separated, 2 + BYTES_SEED_A);
         seed_A_origin[0] = UINT16_TO_LE(i + 1);
@@ -215,6 +247,9 @@ int frodo_mul_add_sa_plus_e(uint16_t *out, const uint16_t *s, uint16_t *e, const
 
     // Start matrix multiplication
     for (i = 0; i < PARAMS_N; i+=8) {
+#ifdef PROFILE_ALL_LEVELS
+        prof_t = prof_all_enabled() ? prof_now_cycles() : 0;
+#endif
         // Generate hash output
         // First 4 rows
         seed_A_origin_0[0] = UINT16_TO_LE(i + 0);
@@ -233,6 +268,10 @@ int frodo_mul_add_sa_plus_e(uint16_t *out, const uint16_t *s, uint16_t *e, const
 #endif
 #endif
 
+#ifdef PROFILE_ALL_LEVELS
+        prof_expand += prof_all_enabled() ? prof_now_cycles() - prof_t : 0;
+        prof_t = prof_all_enabled() ? prof_now_cycles() : 0;
+#endif
 #if !defined(USE_AVX2)
         for (j = 0; j < PARAMS_NBAR; j++) {
             uint16_t sum = 0;
@@ -248,6 +287,9 @@ int frodo_mul_add_sa_plus_e(uint16_t *out, const uint16_t *s, uint16_t *e, const
                 e[j*PARAMS_N + q] = sum;
             }
         }
+#ifdef PROFILE_ALL_LEVELS
+        prof_mul += prof_all_enabled() ? prof_now_cycles() - prof_t : 0;
+#endif
     }
 #else  // Using vector intrinsics
         for (j = 0; j < PARAMS_NBAR; j++) {
@@ -255,9 +297,11 @@ int frodo_mul_add_sa_plus_e(uint16_t *out, const uint16_t *s, uint16_t *e, const
             for (p = 0; p < 8; p++) {
                 sp[p] = _mm256_set1_epi16(s[j*PARAMS_N + i + p]);
             }
-            for (q = 0; q < PARAMS_N; q+=16) {
-                // e may not be 32-byte aligned at every call site (notably for
-                // forced AVX2 in Level-192/256), so use unaligned vector loads/stores.
+            for (q = 0; q + 15 < PARAMS_N; q+=16) {
+                // e may not be 32-byte aligned at every call site, so use
+                // unaligned vector loads/stores. The q+15 bound keeps the
+                // vectorized path safe for profiles such as Frost-192 whose N
+                // is not a multiple of 16.
                 acc = _mm256_loadu_si256((const __m256i*)&e[j*PARAMS_N + q]);
                 for (p = 0; p < 8; p++) {
                     b = _mm256_loadu_si256((const __m256i*)&A[p*PARAMS_N + q]);
@@ -266,8 +310,25 @@ int frodo_mul_add_sa_plus_e(uint16_t *out, const uint16_t *s, uint16_t *e, const
                 }
                 _mm256_storeu_si256((__m256i*)&e[j*PARAMS_N + q], acc);
             }
+#if ((PARAMS_N % 16) != 0)
+            for (; q < PARAMS_N; q++) {
+                uint16_t sum = e[j*PARAMS_N + q];
+                for (p = 0; p < 8; p++) {
+                    sum = (uint16_t)((uint32_t)sum +
+                                     (uint32_t)s[j*PARAMS_N + i + p] * (uint32_t)A[p*PARAMS_N + q]);
+                }
+                e[j*PARAMS_N + q] = sum;
+            }
+#endif
         }
+#ifdef PROFILE_ALL_LEVELS
+        prof_mul += prof_all_enabled() ? prof_now_cycles() - prof_t : 0;
+#endif
     }
+#endif
+#ifdef PROFILE_ALL_LEVELS
+    frost_prof_mat_add_expand(prof_expand);
+    frost_prof_mat_add_mul(prof_mul);
 #endif
     memcpy((unsigned char*)out, (unsigned char*)e, 2*PARAMS_N*PARAMS_NBAR);
 

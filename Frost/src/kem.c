@@ -27,17 +27,36 @@ static int prof_all_enabled(void)
     const char *p = getenv("PROFILE_ALL_LEVELS");
     return (p != NULL && strcmp(p, "1") == 0);
 }
-#define PROF_DECL() unsigned long long __p_total=0,__p_t0=0
+#define PROF_DECL() unsigned long long __attribute__((unused)) __p_total=0,__p_t0=0
 #define PROF_BEGIN() do { if (prof_all_enabled()) __p_total = prof_now_cycles(); } while (0)
 #define PROF_MARK(acc) do { if (prof_all_enabled()) { __p_t0 = prof_now_cycles(); } } while (0)
 #define PROF_ADD(acc) do { if (prof_all_enabled()) { acc += prof_now_cycles() - __p_t0; } } while (0)
 #define PROF_END(total) do { if (prof_all_enabled()) { total = prof_now_cycles() - __p_total; } } while (0)
+static unsigned long long frost_prof_a_expand_cycles = 0;
+static unsigned long long frost_prof_a_mul_cycles = 0;
+static void frost_prof_mat_reset(void)
+{
+    frost_prof_a_expand_cycles = 0;
+    frost_prof_a_mul_cycles = 0;
+}
+static void frost_prof_mat_add_expand(unsigned long long cycles)
+{
+    if (prof_all_enabled()) {
+        frost_prof_a_expand_cycles += cycles;
+    }
+}
+static void frost_prof_mat_add_mul(unsigned long long cycles)
+{
+    if (prof_all_enabled()) {
+        frost_prof_a_mul_cycles += cycles;
+    }
+}
 #else
 #define PROF_DECL()
 #define PROF_BEGIN()
-#define PROF_MARK(acc)
-#define PROF_ADD(acc)
-#define PROF_END(total)
+#define PROF_MARK(acc) do { (void)(acc); } while (0)
+#define PROF_ADD(acc) do { (void)(acc); } while (0)
+#define PROF_END(total) do { (void)(total); } while (0)
 #endif
 
 #ifdef DO_VALGRIND_CHECK
@@ -95,50 +114,72 @@ static int frodo_expand_dither_local(uint16_t *d, size_t n, const uint8_t *seed,
     return 0;
 }
 
-static int frodo_quantize_dithered_local(uint16_t *out, const uint16_t *in, size_t n, const uint8_t *seed, size_t seedlen, uint8_t domain, unsigned int logp)
+static int frodo_quantize_dithered_profile(uint16_t *out, const uint16_t *in, size_t n, const uint8_t *seed, size_t seedlen, uint8_t domain, unsigned int logp, unsigned long long *dither_cycles, unsigned long long *quant_cycles)
 {
     uint16_t *d = (uint16_t *)malloc(n * sizeof(uint16_t));
 
     if (d == NULL) {
         return 1;
     }
+    PROF_DECL();
+    PROF_MARK((*dither_cycles));
     if (frodo_expand_dither_local(d, n, seed, seedlen, domain, logp) != 0) {
         clear_bytes((uint8_t *)d, n * sizeof(uint16_t));
         free(d);
         return 1;
     }
+    PROF_ADD((*dither_cycles));
+    PROF_MARK((*quant_cycles));
     for (size_t i = 0; i < n; i++) {
         out[i] = frodo_quantize_local(in[i], d[i], logp);
     }
+    PROF_ADD((*quant_cycles));
     clear_bytes((uint8_t *)d, n * sizeof(uint16_t));
     free(d);
     return 0;
 }
 
-static int frodo_reconstruct_dithered_local(uint16_t *normal, const uint16_t *split, size_t n, const uint8_t *seed, size_t seedlen, uint8_t domain, unsigned int logp)
+static int __attribute__((unused)) frodo_quantize_dithered_local(uint16_t *out, const uint16_t *in, size_t n, const uint8_t *seed, size_t seedlen, uint8_t domain, unsigned int logp)
+{
+    unsigned long long ignored_dither = 0, ignored_quant = 0;
+    return frodo_quantize_dithered_profile(out, in, n, seed, seedlen, domain, logp, &ignored_dither, &ignored_quant);
+}
+
+static int frodo_reconstruct_dithered_profile(uint16_t *normal, const uint16_t *split, size_t n, const uint8_t *seed, size_t seedlen, uint8_t domain, unsigned int logp, unsigned long long *dither_cycles, unsigned long long *reconstruct_cycles)
 {
     uint16_t *d = (uint16_t *)malloc(n * sizeof(uint16_t));
 
     if (d == NULL) {
         return 1;
     }
+    PROF_DECL();
+    PROF_MARK((*dither_cycles));
     if (frodo_expand_dither_local(d, n, seed, seedlen, domain, logp) != 0) {
         clear_bytes((uint8_t *)d, n * sizeof(uint16_t));
         free(d);
         return 1;
     }
+    PROF_ADD((*dither_cycles));
+    PROF_MARK((*reconstruct_cycles));
     for (size_t i = 0; i < n; i++) {
         normal[i] = (uint16_t)((frodo_reconstruct_local(split[i], logp) - d[i]) & frodo_q_mask_local());
     }
+    PROF_ADD((*reconstruct_cycles));
     clear_bytes((uint8_t *)d, n * sizeof(uint16_t));
     free(d);
     return 0;
+}
+
+static int __attribute__((unused)) frodo_reconstruct_dithered_local(uint16_t *normal, const uint16_t *split, size_t n, const uint8_t *seed, size_t seedlen, uint8_t domain, unsigned int logp)
+{
+    unsigned long long ignored_dither = 0, ignored_reconstruct = 0;
+    return frodo_reconstruct_dithered_profile(normal, split, n, seed, seedlen, domain, logp, &ignored_dither, &ignored_reconstruct);
 }
 
 int crypto_kem_keypair(unsigned char* pk, unsigned char* sk)
 { // FrodoKEM's key generation with public dithered quantization
     PROF_DECL();
-    unsigned long long c_rand = 0, c_seedexp = 0, c_cbd = 0, c_as = 0, c_quant = 0, c_pack = 0, c_hash = 0, c_total = 0;
+    unsigned long long __attribute__((unused)) c_rand = 0, c_seedexp = 0, c_cbd = 0, c_as = 0, c_a_expand = 0, c_a_mul = 0, c_pk_dither = 0, c_pk_quant = 0, c_pack = 0, c_hash = 0, c_total = 0;
     PROF_BEGIN();
     uint8_t *pk_seedA = &pk[0];
     uint8_t *pk_b = &pk[BYTES_SEED_A];
@@ -177,10 +218,16 @@ int crypto_kem_keypair(unsigned char* pk, unsigned char* sk)
     frodo_sample_n(S, PARAMS_N*PARAMS_NBAR);
     PROF_ADD(c_cbd);
     PROF_MARK(c_as);
+#ifdef PROFILE_ALL_LEVELS
+    frost_prof_mat_reset();
+#endif
     frodo_mul_add_as_plus_e(B_raw, S, E_zero, pk_seedA);
+#ifdef PROFILE_ALL_LEVELS
+    c_a_expand = frost_prof_a_expand_cycles;
+    c_a_mul = frost_prof_a_mul_cycles;
+#endif
     PROF_ADD(c_as);
-    PROF_MARK(c_quant);
-    if (frodo_quantize_dithered_local(B_split, B_raw, PARAMS_N*PARAMS_NBAR, pk_seedA, BYTES_SEED_A, DITHER_DOMAIN_PK, PARAMS_PK_LOGP) != 0) {
+    if (frodo_quantize_dithered_profile(B_split, B_raw, PARAMS_N*PARAMS_NBAR, pk_seedA, BYTES_SEED_A, DITHER_DOMAIN_PK, PARAMS_PK_LOGP, &c_pk_dither, &c_pk_quant) != 0) {
         clear_bytes((uint8_t *)B_raw, PARAMS_N*PARAMS_NBAR*sizeof(uint16_t));
         clear_bytes((uint8_t *)B_split, PARAMS_N*PARAMS_NBAR*sizeof(uint16_t));
         clear_bytes((uint8_t *)S, PARAMS_N*PARAMS_NBAR*sizeof(uint16_t));
@@ -188,7 +235,6 @@ int crypto_kem_keypair(unsigned char* pk, unsigned char* sk)
         clear_bytes(shake_input_seedSE, 1 + BYTES_SEED_SE);
         return 1;
     }
-    PROF_ADD(c_quant);
 
     PROF_MARK(c_pack);
     frodo_pack(pk_b, PK_PACKED_BYTES, B_split, PARAMS_N*PARAMS_NBAR, PARAMS_PK_LOGP);
@@ -214,10 +260,10 @@ int crypto_kem_keypair(unsigned char* pk, unsigned char* sk)
     PROF_END(c_total);
 #ifdef PROFILE_ALL_LEVELS
     if (prof_all_enabled()) {
-        unsigned long long c_other = c_total - (c_rand + c_seedexp + c_cbd + c_as + c_quant + c_pack + c_hash);
+        unsigned long long c_other = c_total - (c_rand + c_seedexp + c_cbd + c_as + c_pk_dither + c_pk_quant + c_pack + c_hash);
         fprintf(stderr,
-                "[profile-all] level=%d api=keygen total=%llu random=%llu seedexp=%llu cbd_s=%llu mul_as=%llu quant_b=%llu pack_pk=%llu hash_aux=%llu other=%llu\n",
-                PARAMS_N, c_total, c_rand, c_seedexp, c_cbd, c_as, c_quant, c_pack, c_hash, c_other);
+                "[profile-all] level=%d api=keygen total=%llu random=%llu seedexp=%llu genpublic_a_expand=%llu genpublic_a_mul=%llu d_pk_gen=%llu cbd_s=%llu mul_as=%llu quant_pk=%llu pack_pk=%llu hash_aux=%llu other=%llu\n",
+                PARAMS_N, c_total, c_rand, c_seedexp, c_a_expand, c_a_mul, c_pk_dither, c_cbd, c_as, c_pk_quant, c_pack, c_hash, c_other);
     }
 #endif
     return 0;
@@ -227,7 +273,7 @@ int crypto_kem_keypair(unsigned char* pk, unsigned char* sk)
 int crypto_kem_enc(unsigned char *ct, unsigned char *ss, const unsigned char *pk)
 { // FrodoKEM's key encapsulation with public dithered quantization
     PROF_DECL();
-    unsigned long long c_total = 0, c_coins = 0, c_cbd_r = 0, c_atr = 0, c_unpack_pk = 0, c_btr = 0, c_msg = 0, c_qu = 0, c_qv = 0, c_pack = 0, c_hash_ss = 0;
+    unsigned long long __attribute__((unused)) c_total = 0, c_hpk = 0, c_msg_sample = 0, c_g = 0, c_seed_r = 0, c_cbd_r = 0, c_atr = 0, c_a_expand = 0, c_a_mul = 0, c_unpack_pk = 0, c_dpk = 0, c_recon_pk = 0, c_btr = 0, c_msg = 0, c_du = 0, c_dv = 0, c_qu_apply = 0, c_qv_apply = 0, c_pack = 0, c_hash_ss = 0;
     PROF_BEGIN();
     const uint8_t *pk_seedA = &pk[0];
     const uint8_t *pk_b = &pk[BYTES_SEED_A];
@@ -255,47 +301,58 @@ int crypto_kem_enc(unsigned char *ct, unsigned char *ss, const unsigned char *pk
     uint8_t *Fin_k = &Fin[CRYPTO_CIPHERTEXTBYTES];                   // contains secret data
     uint8_t shake_input_seedSE[1 + BYTES_SEED_SE];                   // contains secret data
 
-    PROF_MARK(c_coins);
+    PROF_MARK(c_hpk);
     shake(pkh, BYTES_PKHASH, pk, CRYPTO_PUBLICKEYBYTES);
+    PROF_ADD(c_hpk);
+    PROF_MARK(c_msg_sample);
     if (randombytes(mu, BYTES_MU + BYTES_SALT) != 0)
         return 1;
+    PROF_ADD(c_msg_sample);
 #ifdef DO_VALGRIND_CHECK
     VALGRIND_MAKE_MEM_UNDEFINED(mu, BYTES_MU + BYTES_SALT);
     VALGRIND_MAKE_MEM_UNDEFINED(pk, CRYPTO_PUBLICKEYBYTES);
 #endif
+    PROF_MARK(c_g);
     shake(G2out, BYTES_SEED_SE + CRYPTO_BYTES, G2in, BYTES_PKHASH + BYTES_MU + BYTES_SALT);
-    PROF_ADD(c_coins);
+    PROF_ADD(c_g);
 
+    PROF_MARK(c_seed_r);
     shake_input_seedSE[0] = 0x96;
     memcpy(&shake_input_seedSE[1], seedSE, BYTES_SEED_SE);
     shake((uint8_t*)Sp, PARAMS_N*PARAMS_NBAR*sizeof(uint16_t), shake_input_seedSE, 1 + BYTES_SEED_SE);
     for (size_t i = 0; i < PARAMS_N * PARAMS_NBAR; i++) {
         Sp[i] = LE_TO_UINT16(Sp[i]);
     }
+    PROF_ADD(c_seed_r);
     PROF_MARK(c_cbd_r);
     frodo_sample_n(Sp, PARAMS_N*PARAMS_NBAR);
     PROF_ADD(c_cbd_r);
     PROF_MARK(c_atr);
+#ifdef PROFILE_ALL_LEVELS
+    frost_prof_mat_reset();
+#endif
     frodo_mul_add_sa_plus_e(Bp_raw, Sp, E_zero, pk_seedA);
+#ifdef PROFILE_ALL_LEVELS
+    c_a_expand = frost_prof_a_expand_cycles;
+    c_a_mul = frost_prof_a_mul_cycles;
+#endif
     PROF_ADD(c_atr);
     for (size_t i = 0; i < PARAMS_N * PARAMS_NBAR; i++) {
         Bp_raw[i] &= frodo_q_mask_local();
     }
-    PROF_MARK(c_qu);
-    if (frodo_quantize_dithered_local(Bp_split, Bp_raw, PARAMS_N*PARAMS_NBAR, salt, BYTES_SALT, DITHER_DOMAIN_U, PARAMS_U_LOGP) != 0) {
+    if (frodo_quantize_dithered_profile(Bp_split, Bp_raw, PARAMS_N*PARAMS_NBAR, salt, BYTES_SALT, DITHER_DOMAIN_U, PARAMS_U_LOGP, &c_du, &c_qu_apply) != 0) {
         return 1;
     }
-    PROF_ADD(c_qu);
     PROF_MARK(c_pack);
     frodo_pack(ct_c1, CT_C1_PACKED_BYTES, Bp_split, PARAMS_N*PARAMS_NBAR, PARAMS_U_LOGP);
     PROF_ADD(c_pack);
 
     PROF_MARK(c_unpack_pk);
     frodo_unpack(B_split, PARAMS_N*PARAMS_NBAR, pk_b, PK_PACKED_BYTES, PARAMS_PK_LOGP);
-    if (frodo_reconstruct_dithered_local(B_norm, B_split, PARAMS_N*PARAMS_NBAR, pk_seedA, BYTES_SEED_A, DITHER_DOMAIN_PK, PARAMS_PK_LOGP) != 0) {
+    PROF_ADD(c_unpack_pk);
+    if (frodo_reconstruct_dithered_profile(B_norm, B_split, PARAMS_N*PARAMS_NBAR, pk_seedA, BYTES_SEED_A, DITHER_DOMAIN_PK, PARAMS_PK_LOGP, &c_dpk, &c_recon_pk) != 0) {
         return 1;
     }
-    PROF_ADD(c_unpack_pk);
     PROF_MARK(c_btr);
     frodo_mul_add_sb_plus_e(V_raw, B_norm, Sp, E_zero_nbar);
     PROF_ADD(c_btr);
@@ -304,11 +361,9 @@ int crypto_kem_enc(unsigned char *ct, unsigned char *ss, const unsigned char *pk
     frodo_key_encode(C_enc, (uint16_t*)mu);
     frodo_add(C_enc, V_raw, C_enc);
     PROF_ADD(c_msg);
-    PROF_MARK(c_qv);
-    if (frodo_quantize_dithered_local(C_split, C_enc, PARAMS_NBAR*PARAMS_NBAR, salt, BYTES_SALT, DITHER_DOMAIN_V, PARAMS_V_LOGP) != 0) {
+    if (frodo_quantize_dithered_profile(C_split, C_enc, PARAMS_NBAR*PARAMS_NBAR, salt, BYTES_SALT, DITHER_DOMAIN_V, PARAMS_V_LOGP, &c_dv, &c_qv_apply) != 0) {
         return 1;
     }
-    PROF_ADD(c_qv);
     PROF_MARK(c_pack);
     frodo_pack(ct_c2, CT_C2_PACKED_BYTES, C_split, PARAMS_NBAR*PARAMS_NBAR, PARAMS_V_LOGP);
     PROF_ADD(c_pack);
@@ -338,10 +393,10 @@ int crypto_kem_enc(unsigned char *ct, unsigned char *ss, const unsigned char *pk
     PROF_END(c_total);
 #ifdef PROFILE_ALL_LEVELS
     if (prof_all_enabled()) {
-        unsigned long long c_other = c_total - (c_coins + c_cbd_r + c_atr + c_unpack_pk + c_btr + c_msg + c_qu + c_qv + c_pack + c_hash_ss);
+        unsigned long long c_other = c_total - (c_hpk + c_msg_sample + c_g + c_seed_r + c_cbd_r + c_atr + c_unpack_pk + c_dpk + c_recon_pk + c_btr + c_msg + c_du + c_dv + c_qu_apply + c_qv_apply + c_pack + c_hash_ss);
         fprintf(stderr,
-                "[profile-all] level=%d api=encaps total=%llu coins_kdf=%llu cbd_r=%llu mul_atr=%llu unpack_recon_pk=%llu mul_btr=%llu msg_add=%llu quant_u=%llu quant_v=%llu pack_ct=%llu hash_ss=%llu other=%llu\n",
-                PARAMS_N, c_total, c_coins, c_cbd_r, c_atr, c_unpack_pk, c_btr, c_msg, c_qu, c_qv, c_pack, c_hash_ss, c_other);
+                "[profile-all] level=%d api=encaps total=%llu h_pk=%llu message_sampling=%llu g_hash=%llu sigma_to_r_xof=%llu r_sampling=%llu genpublic_a_expand=%llu genpublic_a_mul=%llu d_pk_gen=%llu unpack_pk=%llu bhat_reconstruct=%llu gen_dither_du=%llu gen_dither_dv=%llu mul_atr=%llu quant_u=%llu mul_btr=%llu encode_msg=%llu quant_v=%llu pack_ct=%llu final_hash=%llu other=%llu\n",
+                PARAMS_N, c_total, c_hpk, c_msg_sample, c_g, c_seed_r, c_cbd_r, c_a_expand, c_a_mul, c_dpk, c_unpack_pk, c_recon_pk, c_du, c_dv, c_atr, c_qu_apply, c_btr, c_msg, c_qv_apply, c_pack, c_hash_ss, c_other);
     }
 #endif
     return 0;
@@ -351,7 +406,7 @@ int crypto_kem_enc(unsigned char *ct, unsigned char *ss, const unsigned char *pk
 int crypto_kem_dec(unsigned char *ss, const unsigned char *ct, const unsigned char *sk)
 { // FrodoKEM's key decapsulation with public dithered quantization
     PROF_DECL();
-    unsigned long long c_total = 0, c_unct = 0, c_recon_uv = 0, c_stu = 0, c_mudec = 0, c_hashcoins = 0, c_reenc_atr = 0, c_reenc_btr = 0, c_reenc_qu = 0, c_reenc_pk = 0, c_reenc_qv = 0, c_ctcmp = 0, c_hashss = 0;
+    unsigned long long __attribute__((unused)) c_total = 0, c_unct = 0, c_du = 0, c_dv = 0, c_recon_u = 0, c_recon_v = 0, c_stu = 0, c_mudec = 0, c_s_seed = 0, c_g = 0, c_seed_r = 0, c_cbd_r = 0, c_reenc_atr = 0, c_reenc_a_expand = 0, c_reenc_a_mul = 0, c_reenc_btr = 0, c_reenc_du = 0, c_reenc_dv = 0, c_reenc_qu_apply = 0, c_reenc_pk_unpack = 0, c_reenc_dpk = 0, c_reenc_pk_recon = 0, c_reenc_qv_apply = 0, c_ctcmp = 0, c_hashss = 0;
     PROF_BEGIN();
     uint16_t B_split[PARAMS_N*PARAMS_NBAR] = {0};
     uint16_t B_norm[PARAMS_N*PARAMS_NBAR] = {0};
@@ -397,24 +452,22 @@ int crypto_kem_dec(unsigned char *ss, const unsigned char *ct, const unsigned ch
     uint8_t shake_input_seedSE[1 + BYTES_SEED_SE];
     shake_input_seedSE[0] = 0x5F;
     memcpy(&shake_input_seedSE[1], sk_seedSE, BYTES_SEED_SE);
-    PROF_MARK(c_hashcoins);
+    PROF_MARK(c_s_seed);
     shake((uint8_t*)S, PARAMS_N*PARAMS_NBAR*sizeof(uint16_t), shake_input_seedSE, 1 + BYTES_SEED_SE);
     for (size_t i = 0; i < PARAMS_N * PARAMS_NBAR; i++) {
         S[i] = LE_TO_UINT16(S[i]);
     }
     frodo_sample_n(S, PARAMS_N*PARAMS_NBAR);
-    PROF_ADD(c_hashcoins);
+    PROF_ADD(c_s_seed);
 
     PROF_MARK(c_unct);
     frodo_unpack(Bp_split, PARAMS_N*PARAMS_NBAR, ct_c1, CT_C1_PACKED_BYTES, PARAMS_U_LOGP);
     frodo_unpack(C_split, PARAMS_NBAR*PARAMS_NBAR, ct_c2, CT_C2_PACKED_BYTES, PARAMS_V_LOGP);
     PROF_ADD(c_unct);
-    PROF_MARK(c_recon_uv);
-    if (frodo_reconstruct_dithered_local(Bp_norm, Bp_split, PARAMS_N*PARAMS_NBAR, salt, BYTES_SALT, DITHER_DOMAIN_U, PARAMS_U_LOGP) != 0 ||
-        frodo_reconstruct_dithered_local(C_norm, C_split, PARAMS_NBAR*PARAMS_NBAR, salt, BYTES_SALT, DITHER_DOMAIN_V, PARAMS_V_LOGP) != 0) {
+    if (frodo_reconstruct_dithered_profile(Bp_norm, Bp_split, PARAMS_N*PARAMS_NBAR, salt, BYTES_SALT, DITHER_DOMAIN_U, PARAMS_U_LOGP, &c_du, &c_recon_u) != 0 ||
+        frodo_reconstruct_dithered_profile(C_norm, C_split, PARAMS_NBAR*PARAMS_NBAR, salt, BYTES_SALT, DITHER_DOMAIN_V, PARAMS_V_LOGP, &c_dv, &c_recon_v) != 0) {
         return 1;
     }
-    PROF_ADD(c_recon_uv);
     PROF_MARK(c_stu);
     frodo_mul_bs(W, Bp_norm, S);
     PROF_ADD(c_stu);
@@ -423,47 +476,56 @@ int crypto_kem_dec(unsigned char *ss, const unsigned char *ct, const unsigned ch
     frodo_key_decode((uint16_t*)muprime, W);
     PROF_ADD(c_mudec);
 
-    PROF_MARK(c_hashcoins);
+    PROF_MARK(c_g);
     memcpy(pkh, sk_pkh, BYTES_PKHASH);
     memcpy(G2in_salt, salt, BYTES_SALT);
     shake(G2out, BYTES_SEED_SE + CRYPTO_BYTES, G2in, BYTES_PKHASH + BYTES_MU + BYTES_SALT);
+    PROF_ADD(c_g);
 
+    PROF_MARK(c_seed_r);
     shake_input_seedSEprime[0] = 0x96;
     memcpy(&shake_input_seedSEprime[1], seedSEprime, BYTES_SEED_SE);
     shake((uint8_t*)Sp, PARAMS_N*PARAMS_NBAR*sizeof(uint16_t), shake_input_seedSEprime, 1 + BYTES_SEED_SE);
     for (size_t i = 0; i < PARAMS_N * PARAMS_NBAR; i++) {
         Sp[i] = LE_TO_UINT16(Sp[i]);
     }
+    PROF_ADD(c_seed_r);
+    PROF_MARK(c_cbd_r);
     frodo_sample_n(Sp, PARAMS_N*PARAMS_NBAR);
-    PROF_ADD(c_hashcoins);
+    PROF_ADD(c_cbd_r);
     PROF_MARK(c_reenc_atr);
+#ifdef PROFILE_ALL_LEVELS
+    frost_prof_mat_reset();
+#endif
     frodo_mul_add_sa_plus_e(BBp_raw, Sp, E_zero, pk_seedA);
+#ifdef PROFILE_ALL_LEVELS
+    c_reenc_a_expand = frost_prof_a_expand_cycles;
+    c_reenc_a_mul = frost_prof_a_mul_cycles;
+#endif
     PROF_ADD(c_reenc_atr);
     for (size_t i = 0; i < PARAMS_N * PARAMS_NBAR; i++) {
         BBp_raw[i] &= frodo_q_mask_local();
     }
-    PROF_MARK(c_reenc_qu);
-    if (frodo_quantize_dithered_local(BBp_split, BBp_raw, PARAMS_N*PARAMS_NBAR, salt, BYTES_SALT, DITHER_DOMAIN_U, PARAMS_U_LOGP) != 0) {
+    if (frodo_quantize_dithered_profile(BBp_split, BBp_raw, PARAMS_N*PARAMS_NBAR, salt, BYTES_SALT, DITHER_DOMAIN_U, PARAMS_U_LOGP, &c_reenc_du, &c_reenc_qu_apply) != 0) {
         return 1;
     }
-    PROF_ADD(c_reenc_qu);
 
-    PROF_MARK(c_reenc_pk);
+    PROF_MARK(c_reenc_pk_unpack);
     frodo_unpack(B_split, PARAMS_N*PARAMS_NBAR, pk_b, PK_PACKED_BYTES, PARAMS_PK_LOGP);
-    if (frodo_reconstruct_dithered_local(B_norm, B_split, PARAMS_N*PARAMS_NBAR, pk_seedA, BYTES_SEED_A, DITHER_DOMAIN_PK, PARAMS_PK_LOGP) != 0) {
+    PROF_ADD(c_reenc_pk_unpack);
+    if (frodo_reconstruct_dithered_profile(B_norm, B_split, PARAMS_N*PARAMS_NBAR, pk_seedA, BYTES_SEED_A, DITHER_DOMAIN_PK, PARAMS_PK_LOGP, &c_reenc_dpk, &c_reenc_pk_recon) != 0) {
         return 1;
     }
-    PROF_ADD(c_reenc_pk);
     PROF_MARK(c_reenc_btr);
     frodo_mul_add_sb_plus_e(CC, B_norm, Sp, E_zero_nbar);
     PROF_ADD(c_reenc_btr);
-    PROF_MARK(c_reenc_qv);
+    PROF_MARK(c_reenc_qv_apply);
     frodo_key_encode(W, (uint16_t*)muprime);
     frodo_add(CC, CC, W);
-    if (frodo_quantize_dithered_local(CC_split, CC, PARAMS_NBAR*PARAMS_NBAR, salt, BYTES_SALT, DITHER_DOMAIN_V, PARAMS_V_LOGP) != 0) {
+    PROF_ADD(c_reenc_qv_apply);
+    if (frodo_quantize_dithered_profile(CC_split, CC, PARAMS_NBAR*PARAMS_NBAR, salt, BYTES_SALT, DITHER_DOMAIN_V, PARAMS_V_LOGP, &c_reenc_dv, &c_reenc_qv_apply) != 0) {
         return 1;
     }
-    PROF_ADD(c_reenc_qv);
 
     memcpy(Fin_ct, ct, CRYPTO_CIPHERTEXTBYTES);
 
@@ -496,10 +558,10 @@ int crypto_kem_dec(unsigned char *ss, const unsigned char *ct, const unsigned ch
     PROF_END(c_total);
 #ifdef PROFILE_ALL_LEVELS
     if (prof_all_enabled()) {
-        unsigned long long c_other = c_total - (c_unct + c_recon_uv + c_stu + c_mudec + c_hashcoins + c_reenc_atr + c_reenc_btr + c_reenc_qu + c_reenc_pk + c_reenc_qv + c_ctcmp + c_hashss);
+        unsigned long long c_other = c_total - (c_unct + c_du + c_dv + c_recon_u + c_recon_v + c_stu + c_mudec + c_s_seed + c_g + c_seed_r + c_cbd_r + c_reenc_atr + c_reenc_btr + c_reenc_du + c_reenc_dv + c_reenc_qu_apply + c_reenc_pk_unpack + c_reenc_dpk + c_reenc_pk_recon + c_reenc_qv_apply + c_ctcmp + c_hashss);
         fprintf(stderr,
-                "[profile-all] level=%d api=decaps total=%llu unpack_ct=%llu recon_uv=%llu mul_stu=%llu msg_decode=%llu hash_coins=%llu reenc_atr=%llu reenc_btr=%llu reenc_qu=%llu reenc_pk=%llu reenc_qv=%llu ct_compare=%llu hash_ss=%llu other=%llu\n",
-                PARAMS_N, c_total, c_unct, c_recon_uv, c_stu, c_mudec, c_hashcoins, c_reenc_atr, c_reenc_btr, c_reenc_qu, c_reenc_pk, c_reenc_qv, c_ctcmp, c_hashss, c_other);
+                "[profile-all] level=%d api=decaps total=%llu unpack_ct=%llu gen_dither_du=%llu gen_dither_dv=%llu reconstruct_u=%llu reconstruct_v=%llu mul_stu=%llu msg_decode=%llu sk_s_sampling=%llu g_hash=%llu sigma_to_r_xof=%llu r_sampling=%llu reenc_a_expand=%llu reenc_a_mul=%llu reenc_atr=%llu reenc_btr=%llu reenc_du=%llu reenc_dv=%llu reenc_quant_u=%llu reenc_unpack_pk=%llu reenc_d_pk=%llu reenc_bhat_reconstruct=%llu reenc_quant_v=%llu ct_compare=%llu final_hash=%llu other=%llu\n",
+                PARAMS_N, c_total, c_unct, c_du, c_dv, c_recon_u, c_recon_v, c_stu, c_mudec, c_s_seed, c_g, c_seed_r, c_cbd_r, c_reenc_a_expand, c_reenc_a_mul, c_reenc_atr, c_reenc_btr, c_reenc_du, c_reenc_dv, c_reenc_qu_apply, c_reenc_pk_unpack, c_reenc_dpk, c_reenc_pk_recon, c_reenc_qv_apply, c_ctcmp, c_hashss, c_other);
     }
 #endif
     return 0;

@@ -76,6 +76,13 @@ CFLAGS+= -std=gnu11 -Wall -Wextra -DNIX -D $(ARCHITECTURE) -D $(USE_OPT_LEVEL) -
 ifeq "$(USE_OPT_LEVEL)" "_FAST_"
 CFLAGS+= -DUSE_AVX2_U32
 endif
+ifeq "$(USE_OPT_LEVEL)" "_REFERENCE_"
+ifeq "$(FROST_U16_MATERIALIZED_A_MATMUL)" "1"
+CFLAGS+= -DFROST_U16_MATERIALIZED_A_MATMUL
+else
+CFLAGS+= -DFROST_U16_STREAMING_MATMUL
+endif
+endif
 ifeq "$(CC)" "gcc"
 ifneq "$(ARCHITECTURE)" "_PPC_"
 ifneq "$(ARCHITECTURE)" "_S390X_"
@@ -131,18 +138,18 @@ objs/random/random.o: ../common/random/random.c ../common/random/random.h
 	$(CC) -c $(CFLAGS) ../common/random/random.c -o objs/random/random.o
 RAND_OBJS := objs/random/random.o
 
-# KEM_FRODO
-KEM_FRODO640_OBJS := $(addprefix objs/, frost128.o util.o)
-KEM_FRODO640_HEADERS := $(addprefix src/, api_frost128.h config.h frost_macrify.h)
-$(KEM_FRODO640_OBJS): $(KEM_FRODO640_HEADERS) $(addprefix src/, kem.c noise.c util.c)
+# KEM_FROST u16
+KEM_FROST128_OBJS := $(addprefix objs/, frost128.o util.o)
+KEM_FROST128_HEADERS := $(addprefix src/, api_frost128.h config.h frost_macrify.h)
+$(KEM_FROST128_OBJS): $(KEM_FROST128_HEADERS) $(addprefix src/, kem.c noise.c util.c)
 
-KEM_FRODO976_OBJS := $(addprefix objs/, frost192.o util.o)
-KEM_FRODO976_HEADERS := $(addprefix src/, api_frost192.h config.h frost_macrify.h)
-$(KEM_FRODO976_OBJS): $(KEM_FRODO976_HEADERS) $(addprefix src/, kem.c noise.c util.c)
+KEM_FROST192_OBJS := $(addprefix objs/, frost192.o util.o)
+KEM_FROST192_HEADERS := $(addprefix src/, api_frost192.h config.h frost_macrify.h)
+$(KEM_FROST192_OBJS): $(KEM_FROST192_HEADERS) $(addprefix src/, kem.c noise.c util.c)
 
-KEM_FRODO1344_OBJS := $(addprefix objs/, frost256.o util.o)
-KEM_FRODO1344_HEADERS := $(addprefix src/, api_frost256.h config.h frost_macrify.h)
-$(KEM_FRODO1344_OBJS): $(KEM_FRODO1344_HEADERS) $(addprefix src/, kem.c noise.c util.c)
+KEM_FROST256_OBJS := $(addprefix objs/, frost256.o util.o)
+KEM_FROST256_HEADERS := $(addprefix src/, api_frost256.h config.h frost_macrify.h)
+$(KEM_FROST256_OBJS): $(KEM_FROST256_HEADERS) $(addprefix src/, kem.c noise.c util.c)
 
 KEM_FROST384_OBJS := $(addprefix objs/, frost384.o util.o)
 KEM_FROST384_HEADERS := $(addprefix src/, api_frost384.h config.h frost_macrify.h frost_u32_core.h)
@@ -206,19 +213,19 @@ objs/sha3/keccak4x/KeccakP-1600-times4-SIMD256.o: ../common/sha3/keccak4x/Keccak
 SHAKEx4_OBJS := objs/sha3/fips202x4.o objs/sha3/keccak4x/KeccakP-1600-times4-SIMD256.o
 endif
 
-lib128: $(KEM_FRODO640_OBJS) $(RAND_OBJS) $(AES_OBJS) $(SHAKE_OBJS) $(SHAKEx4_OBJS)
+lib128: $(KEM_FROST128_OBJS) $(RAND_OBJS) $(AES_OBJS) $(SHAKE_OBJS) $(SHAKEx4_OBJS)
 	rm -rf frost128
 	mkdir frost128
 	$(AR) frost128/libfrost.a $^
 	$(RANLIB) frost128/libfrost.a
 
-lib192: $(KEM_FRODO976_OBJS) $(RAND_OBJS) $(AES_OBJS) $(SHAKE_OBJS) $(SHAKEx4_OBJS)
+lib192: $(KEM_FROST192_OBJS) $(RAND_OBJS) $(AES_OBJS) $(SHAKE_OBJS) $(SHAKEx4_OBJS)
 	rm -rf frost192
 	mkdir frost192
 	$(AR) frost192/libfrost.a $^
 	$(RANLIB) frost192/libfrost.a
 
-lib256: $(KEM_FRODO1344_OBJS) $(RAND_OBJS) $(AES_OBJS) $(SHAKE_OBJS) $(SHAKEx4_OBJS)
+lib256: $(KEM_FROST256_OBJS) $(RAND_OBJS) $(AES_OBJS) $(SHAKE_OBJS) $(SHAKEx4_OBJS)
 	rm -rf frost256
 	mkdir frost256
 	$(AR) frost256/libfrost.a $^
@@ -243,17 +250,17 @@ tests: lib128 lib192 lib256 lib384 lib512 tests/ds_benchmark.h
 	$(CC) $(CFLAGS) -L./frost384 tests/test_KEM384.c -lfrost $(LDFLAGS) -o frost384/test_KEM $(ARM_SETTING)
 	$(CC) $(CFLAGS) -L./frost512 tests/test_KEM512.c -lfrost $(LDFLAGS) -o frost512/test_KEM $(ARM_SETTING)
 
-lib128_for_KATs: $(KEM_FRODO640_OBJS) $(AES_OBJS) $(SHAKE_OBJS) $(SHAKEx4_OBJS)
+lib128_for_KATs: $(KEM_FROST128_OBJS) $(AES_OBJS) $(SHAKE_OBJS) $(SHAKEx4_OBJS)
 	@mkdir -p frost128
 	$(AR) frost128/libfrost_for_testing.a $^
 	$(RANLIB) frost128/libfrost_for_testing.a
 
-lib192_for_KATs: $(KEM_FRODO976_OBJS) $(AES_OBJS) $(SHAKE_OBJS) $(SHAKEx4_OBJS)
+lib192_for_KATs: $(KEM_FROST192_OBJS) $(AES_OBJS) $(SHAKE_OBJS) $(SHAKEx4_OBJS)
 	@mkdir -p frost192
 	$(AR) frost192/libfrost_for_testing.a $^
 	$(RANLIB) frost192/libfrost_for_testing.a
 
-lib256_for_KATs: $(KEM_FRODO1344_OBJS) $(AES_OBJS) $(SHAKE_OBJS) $(SHAKEx4_OBJS)
+lib256_for_KATs: $(KEM_FROST256_OBJS) $(AES_OBJS) $(SHAKE_OBJS) $(SHAKEx4_OBJS)
 	@mkdir -p frost256
 	$(AR) frost256/libfrost_for_testing.a $^
 	$(RANLIB) frost256/libfrost_for_testing.a

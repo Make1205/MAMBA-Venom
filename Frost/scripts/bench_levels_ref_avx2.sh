@@ -10,6 +10,8 @@ ONLY_MODE=${ONLY_MODE:-}
 ONLY_LEVEL=${ONLY_LEVEL:-}
 RUN_REFERENCE=${RUN_REFERENCE:-1}
 RUN_AVX2=${RUN_AVX2:-1}
+FROST_U16_STREAMING_MATMUL=${FROST_U16_STREAMING_MATMUL:-0}
+FROST_U16_MATERIALIZED_A_MATMUL=${FROST_U16_MATERIALIZED_A_MATMUL:-0}
 PROFILE_U32=${PROFILE_U32:-0}
 REPS=${REPS:-}
 
@@ -34,21 +36,57 @@ query_sizes_from_api(){ local h; h="$(api_header_for_level "$1")"; cpp -dM -incl
 
 parse_cycles(){ awk '$1=="Key"&&$2=="generation"{ki=$3;k=(NF>=7?$(NF-1):"")}$1=="KEM"&&$2=="encapsulate"{ei=$3;e=(NF>=7?$(NF-1):"")}$1=="KEM"&&$2=="decapsulate"{di=$3;d=(NF>=7?$(NF-1):"")}END{tot="";if(k!=""&&e!=""&&d!="")tot=k+e+d;it=ki;if(ei>it)it=ei;if(di>it)it=di;printf "%s,%s,%s,%s,%s\n",k,e,d,tot,it}' "$1"; }
 
+backend_tag(){
+  local mode="$1" level="$2"
+  if [[ "$mode" == "REFERENCE" ]]; then
+    echo "ref"
+  elif [[ "$level" == "128" ]]; then
+    echo "avx2_u16"
+  elif [[ "$level" == "192" || "$level" == "256" ]]; then
+    echo "avx2_u16"
+  else
+    echo "u32_full_shake4x"
+  fi
+}
+
 notes_for_run(){
   local mode="$1" level="$2"
   if [[ "$mode" == "REFERENCE" ]]; then
     [[ "$level" == "384" || "$level" == "512" ]] && echo "u32" || echo "u16"
   else
-    [[ "$level" == "384" || "$level" == "512" ]] && echo "u32_full_shake4x" || echo "u16"
+    backend_tag "$mode" "$level"
   fi
+}
+
+audit_backend(){
+  local mode="$1" level="$2" backend="$3"
+  local use_reference=0 use_avx2=0 use_avx2_u32=0 force="${FORCE_USE_AVX2_FOR_L256:-0}" effective=""
+  local generation="${GENERATION_A:-AES128}"
+  if [[ "$mode" == "REFERENCE" ]]; then
+    use_reference=1
+    if [[ "$level" == "384" || "$level" == "512" ]]; then effective="frost_macrify_u32.c reference u32 path"; elif [[ "$FROST_U16_MATERIALIZED_A_MATMUL" == "1" ]]; then effective="frost_macrify_reference.c materialized u16 path"; else effective="frost_macrify_reference.c streaming u16 path"; fi
+  elif [[ "$level" == "128" ]]; then
+    use_avx2=1
+    use_avx2_u32=1
+    effective="frost_macrify.c USE_AVX2 u16 path"
+  elif [[ "$level" == "192" || "$level" == "256" ]]; then
+    use_avx2=1
+    use_avx2_u32=1
+    effective="frost_macrify.c USE_AVX2 u16 path"
+  else
+    use_avx2=1
+    use_avx2_u32=1
+    effective="frost_macrify_u32.c u32_full_shake4x path"
+  fi
+  echo "[backend-audit] level=$level mode=$mode backend_tag=$backend USE_REFERENCE=$use_reference USE_AVX2=$use_avx2 FORCE_USE_AVX2_FOR_L256=$force USE_AVX2_U32=$use_avx2_u32 GENERATION_A=$generation effective=$effective FROST_U16_STREAMING_MATMUL=$FROST_U16_STREAMING_MATMUL FROST_U16_MATERIALIZED_A_MATMUL=$FROST_U16_MATERIALIZED_A_MATMUL"
 }
 
 modes=()
 if [[ -n "$ONLY_MODE" ]]; then
-  modes=("$ONLY_MODE")
+  modes=("$([[ "$ONLY_MODE" == "AVX2" ]] && echo FAST || echo "$ONLY_MODE")")
 else
   [[ "$RUN_REFERENCE" == "1" ]] && modes+=("REFERENCE")
-  [[ "$RUN_AVX2" == "1" ]] && modes+=("AVX2")
+  [[ "$RUN_AVX2" == "1" ]] && modes+=("FAST")
 fi
 if [[ ${#modes[@]} -eq 0 ]]; then
   echo "[error] no benchmark mode enabled (RUN_REFERENCE/RUN_AVX2 are both 0)"
@@ -63,19 +101,21 @@ echo "[info] Output CSV: $OUT_CSV"
 echo "[info] Running benchmarks for modes: ${modes[*]}"
 
 echo "[info] PROFILE_U32=$PROFILE_U32"
+echo "[info] FROST_U16_STREAMING_MATMUL=$FROST_U16_STREAMING_MATMUL FROST_U16_MATERIALIZED_A_MATMUL=$FROST_U16_MATERIALIZED_A_MATMUL"
 
 for mode in "${modes[@]}"; do
   echo "[info] ===== Building mode: $mode ====="
   make -C "$FROST_DIR" clean >/dev/null
   if [[ "$mode" == "REFERENCE" ]]; then
-    make -C "$FROST_DIR" OPT_LEVEL=REFERENCE tests >/dev/null
+    make -C "$FROST_DIR" OPT_LEVEL=REFERENCE FROST_U16_STREAMING_MATMUL="$FROST_U16_STREAMING_MATMUL" FROST_U16_MATERIALIZED_A_MATMUL="$FROST_U16_MATERIALIZED_A_MATMUL" tests >/dev/null
   else
-    make -C "$FROST_DIR" OPT_LEVEL=FAST tests >/dev/null
+    make -C "$FROST_DIR" OPT_LEVEL=FAST FROST_U16_STREAMING_MATMUL="$FROST_U16_STREAMING_MATMUL" FROST_U16_MATERIALIZED_A_MATMUL="$FROST_U16_MATERIALIZED_A_MATMUL" tests >/dev/null
   fi
 
   for level in "${levels[@]}"; do
     bin=$(level_bin "$level"); timeout_s=$(get_timeout_secs "$level"); correct_iters=$(get_correct_iters "$level"); bench_seconds=$(get_bench_seconds "$level")
-    backend="$( [[ "$mode" == "REFERENCE" ]] && echo "ref" || echo "avx2" )"
+    backend="$(backend_tag "$mode" "$level")"
+    audit_backend "$mode" "$level" "$backend"
     notes="$(notes_for_run "$mode" "$level")"
 
     echo "[param-check] level=$level $(level_params "$level")"
