@@ -13,7 +13,7 @@
 
 
 // Parameters for "Frost-256"
-#define PARAMS_N 1280
+#define PARAMS_N 1288
 #define PARAMS_NBAR 8
 #define PARAMS_LOGQ 16
 #define PARAMS_Q (1 << PARAMS_LOGQ)
@@ -26,7 +26,7 @@
 #define BYTES_SEED_SE (2*CRYPTO_BYTES)
 #define BYTES_PKHASH CRYPTO_BYTES
 #define PARAMS_PK_LOGP 13
-#define PARAMS_U_LOGP  12
+#define PARAMS_U_LOGP  13
 #define PARAMS_ETA 1
 #define PARAMS_V_LOGP  7
 
