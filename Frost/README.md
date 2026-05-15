@@ -24,6 +24,19 @@ The first three profiles are synchronized to the formal paper parameter sets. `F
 | MAMBA-Frost-384 | 2176 | 2176 | 8 | 18 | 3 | 3 | 6 | 16 | 15 | 13 | 34848 | 32776 | 41440 | 48 | — | — |
 | MAMBA-Frost-512 | 3072 | 3072 | 8 | 20 | 4 | 4 | 8 | 18 | 18 | 11 | 55328 | 55416 | 67680 | 64 | — | — |
 
+
+## Public matrix expansion PRG
+
+Public matrix expansion is part of the concrete implementation assumption.
+Default builds use `GENERATION_A=AES_BY_LEVEL`: Frost-128 expands the public
+matrix with AES-128-ECB, while Frost-192 and Frost-256 expand it with
+AES-256-ECB from the 32-byte `seed_A`. Using AES-128 for all levels would
+introduce a 128-bit PRG term and is therefore not used as the default for the
+Frost-192/256 paper parameters.
+
+The explicit `GENERATION_A=AES128` build knob is retained only for
+compatibility experiments; it is not the paper-level default for Frost-192/256.
+
 ## Build
 
 ```sh

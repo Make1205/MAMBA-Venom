@@ -29,6 +29,16 @@ Current C core supports all five `MAMBA-Frost-128/192/256/384/512` profiles.
 | MAMBA-Frost-384 | 2176 | 2176 | 8 | 18 | 3 | 3 | 6 | 16 | 15 | 13 | 34848 | 32776 | 41440 | 48 | — | — |
 | MAMBA-Frost-512 | 3072 | 3072 | 8 | 20 | 4 | 4 | 8 | 18 | 18 | 11 | 55328 | 55416 | 67680 | 64 | — | — |
 
+
+## Public matrix expansion PRG
+
+In the active `Frost/` implementation, public matrix expansion is part of the
+concrete implementation assumption. Default builds use `GENERATION_A=AES_BY_LEVEL`:
+Frost-128 uses AES-128-ECB for public matrix expansion, while Frost-192 and
+Frost-256 use AES-256-ECB from the 32-byte `seed_A`. Using AES-128 for all
+levels would introduce a 128-bit PRG term and is therefore not used as the
+default for Frost-192/256 paper parameters.
+
 ## Repository contents
 
 - [`Frost/`](Frost/): current `MAMBA-Frost` / `Frost.KEM` implementation, tests,

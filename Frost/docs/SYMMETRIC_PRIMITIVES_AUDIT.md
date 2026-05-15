@@ -1,17 +1,20 @@
-# MAMBA-Frost symmetric primitive audit
+# Symmetric primitives audit for active Frost implementation
 
-Scope: active `Frost/` implementation only. This audit intentionally excludes `legacy/` and `API_PKC/`.
+Scope: active `Frost/` implementation only. Historical or legacy directories are intentionally out of scope for this audit.
 
-Build-time profile notes:
+## Summary
 
-- The default `Frost/Makefile` sets `GENERATION_A=AES128`, so public matrix `A` expansion uses AES-128-ECB in normal builds.
-- Setting `GENERATION_A=SHAKE128` switches only public matrix `A` expansion to SHAKE128; the KEM/hash/dither/noise seed XOF calls still use the profile-local `shake` macro.
-- `Frost-128` defines `shake` as `shake128`; `Frost-192` and `Frost-256` define `shake` as `shake256`.
-- Reference and FAST u16 backends share the same KEM code (`kem.c`) and the same compile-time `USE_AES128_FOR_A` / `USE_SHAKE128_FOR_A` selection for public matrix expansion. They differ in matrix multiplication implementation, not in KEM dither/hash/FO domain tags.
+- Default public matrix `A` expansion now uses an AES primitive matched to the profile security level: Frost-128 uses AES-128-ECB and Frost-192/256 use AES-256-ECB. The matrix remains public and reproducible from the 32-byte `seed_A`.
+- Public matrix expansion is part of the concrete implementation assumption. Using AES-128 for all levels would introduce a 128-bit PRG term, so it is not used as the default for the Frost-192/256 paper parameters.
+- `GENERATION_A=AES128` remains available as an explicit compatibility/legacy build knob, but it is not the default and should not be used for Frost-192/256 paper-level benchmark or KAT claims.
+- `GENERATION_A=SHAKE128` remains an optional public-matrix expansion backend. It uses SHAKE128 for every level and is not the default paper-parameter path for Frost-192/256.
+- Reference and FAST u16 backends share the same KEM code (`kem.c`) and the same compile-time public-matrix expansion selection. They differ in matrix multiplication implementation, not in KEM dither/hash/FO domain tags.
 
-| Purpose | Source file | Function or macro | Primitive | Domain tag or personalization | Profile dependence | Notes |
+## Active primitive map
+
+| Use | Files | Code path | Primitive | Domain / personalization | Level behavior | Notes |
 |---|---|---|---|---|---|---|
-| public matrix A expansion | `Frost/src/frost_macrify_reference.c`, `Frost/src/frost_macrify.c` | `frost_mul_add_as_plus_e`, `frost_mul_add_sa_plus_e` | Default: AES-128-ECB via `AES128_ECB_enc_sch` or OpenSSL `EVP_aes_128_ecb`; optional: `shake128` when `GENERATION_A=SHAKE128` | AES input blocks encode row/column indices; SHAKE path prepends a little-endian row index to `seed_A` | Same for Frost-128/192/256; backend depends on `OPT_LEVEL`, primitive selected by `GENERATION_A` | Default Makefile uses `USE_AES128_FOR_A`. Reference and FAST u16 use the same seed/index convention. |
+| public matrix A expansion | `Frost/src/frost_macrify_reference.c`, `Frost/src/frost_macrify.c` | `frost_mul_add_as_plus_e`, `frost_mul_add_sa_plus_e` | Default `GENERATION_A=AES_BY_LEVEL`: AES-128-ECB for Frost-128, AES-256-ECB for Frost-192/256 | AES input blocks encode row/column indices; key is `seed_A` (first 16 bytes for AES-128, all 32 bytes for AES-256) | Frost-128: AES-128; Frost-192: AES-256; Frost-256: AES-256 | Public deterministic PRG from `seed_A`. Explicit `GENERATION_A=AES128` is compatibility-only for Frost-192/256 and is not used for paper-level runs. |
 | public-key dither D_pk | `Frost/src/kem.c` | `frost_expand_dither_local(..., DITHER_DOMAIN_PK, PARAMS_PK_LOGP)` | profile-local `shake` macro | `0xA1 || seed_A` | Frost-128 uses SHAKE128; Frost-192/256 use SHAKE256 | Used for public-key quantization and reconstruction. |
 | ciphertext dither D_U | `Frost/src/kem.c` | `frost_expand_dither_local(..., DITHER_DOMAIN_U, PARAMS_U_LOGP)` | profile-local `shake` macro | `0xB1 || salt` | Frost-128 uses SHAKE128; Frost-192/256 use SHAKE256 | Used for U component quantization and reconstruction. |
 | ciphertext dither D_V | `Frost/src/kem.c` | `frost_expand_dither_local(..., DITHER_DOMAIN_V, PARAMS_V_LOGP)` | profile-local `shake` macro | `0xC1 || salt` | Frost-128 uses SHAKE128; Frost-192/256 use SHAKE256 | Used for V component quantization and reconstruction. |
@@ -22,7 +25,7 @@ Build-time profile notes:
 | final KDF | `Frost/src/kem.c` | `shake(ss, CRYPTO_BYTES, Fin, CRYPTO_CIPHERTEXTBYTES + CRYPTO_BYTES)` | profile-local `shake` macro | input is `ct || k_or_s`; no extra byte tag | Frost-128 uses SHAKE128; Frost-192/256 use SHAKE256 | Decapsulation uses `ct_select` to choose `k'` or fallback secret `s` before this hash. |
 | random seed generation | `Frost/src/kem.c`, `common/random/random.c`, KAT tests in `Frost/tests` | `randombytes(...)`; `randombytes_init(...)` in KAT RNG | Normal build: OS RNG (`/dev/urandom` on NIX, BCrypt on Windows). KAT tests: AES-256-CTR DRBG in `Frost/tests/rng.c` | Normal build has no Frost-specific domain tag; KAT seed is the NIST-style 48-byte test seed | Independent of Frost level except requested byte counts | Keygen samples `randomness_s || randomness_seedSE || randomness_z`; encaps samples `mu || salt`. |
 | seed_A derivation | `Frost/src/kem.c` | `shake(pk_seedA, BYTES_SEED_A, randomness_z, BYTES_SEED_A)` | profile-local `shake` macro | `randomness_z`; no extra byte tag | Frost-128 uses SHAKE128; Frost-192/256 use SHAKE256 | `seed_A` then drives public matrix expansion. |
-| Reference vs FAST domain tags | `Frost/src/kem.c`, `Frost/src/frost_macrify_reference.c`, `Frost/src/frost_macrify.c` | shared KEM functions and per-backend matrix helpers | Same KEM `shake` calls and dither/noise tags; same AES/SHAKE A-generation personalization under the selected `GENERATION_A` | `0xA1`, `0xB1`, `0xC1`, `0x5F`, `0x96`; A-generation row/column personalization | Same for Frost-128/192/256 | FAST changes matrix arithmetic implementation only; it does not introduce separate KEM hash/dither domain tags. |
+| Reference vs FAST domain tags | `Frost/src/kem.c`, `Frost/src/frost_macrify_reference.c`, `Frost/src/frost_macrify.c` | shared KEM functions and per-backend matrix helpers | Same KEM `shake` calls and dither/noise tags; same default AES-by-level A-generation selection | `0xA1`, `0xB1`, `0xC1`, `0x5F`, `0x96`; A-generation row/column personalization | Same for Frost-128/192/256 | FAST changes matrix arithmetic implementation only; it does not introduce separate KEM hash/dither domain tags. |
 | active old FrodoKEM names/comments | `Frost/src`, `Frost/tests`, `Frost/scripts`, `README.md`, `Frost/README.md`, `docs` | `rg -n "frodo_" ...` | none found | none | none | The active Frost implementation/public docs do not contain `frodo_` matches at audit time. |
 
 ## UNKNOWN items

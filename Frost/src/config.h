@@ -89,12 +89,14 @@
 
 
 // Defining method for generating matrix A
-#if defined(_AES128_FOR_A_)
+#if defined(_AES_BY_LEVEL_FOR_A_)
+    #define USE_AES_BY_LEVEL_FOR_A
+#elif defined(_AES128_FOR_A_)
     #define USE_AES128_FOR_A
 #elif defined(_SHAKE128_FOR_A_)
     #define USE_SHAKE128_FOR_A
 #else
-    ##error -- missing method for generating matrix A
+    #error -- missing method for generating matrix A
 #endif
 
 

@@ -61,7 +61,7 @@ notes_for_run(){
 audit_backend(){
   local mode="$1" level="$2" backend="$3"
   local use_reference=0 use_avx2=0 use_avx2_u32=0 force="${FORCE_USE_AVX2_FOR_L256:-0}" effective=""
-  local generation="${GENERATION_A:-AES128}"
+  local generation="${GENERATION_A:-AES_BY_LEVEL}"
   if [[ "$mode" == "REFERENCE" ]]; then
     use_reference=1
     if [[ "$level" == "384" || "$level" == "512" ]]; then effective="frost_macrify_u32.c reference u32 path"; elif [[ "$FROST_U16_MATERIALIZED_A_MATMUL" == "1" ]]; then effective="frost_macrify_reference.c materialized u16 path"; else effective="frost_macrify_reference.c streaming u16 path"; fi
