@@ -297,21 +297,21 @@ size_test:
 
 check: tests size_test
 
-test128:
+test128: tests
 ifeq "$(DO_VALGRIND_CHECK)" "TRUE"
 	valgrind --tool=memcheck --error-exitcode=1 --max-stackframe=20480000 frost128/test_KEM
 else
 	frost128/test_KEM
 endif
 
-test192:
+test192: tests
 ifeq "$(DO_VALGRIND_CHECK)" "TRUE"
 	valgrind --tool=memcheck --error-exitcode=1 --max-stackframe=20480000 frost192/test_KEM
 else
 	frost192/test_KEM
 endif
 
-test256:
+test256: tests
 ifeq "$(DO_VALGRIND_CHECK)" "TRUE"
 	valgrind --tool=memcheck --error-exitcode=1 --max-stackframe=20480000 frost256/test_KEM
 else

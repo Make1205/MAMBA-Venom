@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
-"""Summarize optional Frost breakdown profiling CSVs.
+"""Summarize context-qualified Frost breakdown profiling CSVs.
 
 Input raw CSV format:
   scheme,level,mode,backend,component,cycles,iterations,status,notes
 
-Summary CSV keeps cycles. The LaTeX fragment renders selected columns in kCycles.
+The raw component names are context-qualified (for example KeyGen.Expand_A
+and Encaps.Expand_A). The summary intentionally avoids merging components
+across KeyGen, Encaps, Decaps, and Decaps re-encryption contexts.
 """
 from __future__ import annotations
 
@@ -14,27 +16,36 @@ from pathlib import Path
 
 SUMMARY_FIELDS = [
     "scheme", "level", "mode", "backend",
-    "KEM_KeyGen", "KEM_Encaps", "KEM_Decaps",
-    "PKE_KeyGen", "PKE_Enc", "PKE_Dec",
-    "Expand_A", "A_times_S", "AT_times_R", "BhatT_times_R", "ST_times_U",
-    "Dither", "Quant_Recon", "Pack_Unpack", "Hash_KDF",
+    "KeyGen.Expand_A", "KeyGen.A_times_S", "KeyGen.Dither_PK", "KeyGen.Quant_PK", "KeyGen.Pack_PK", "KeyGen.PK_Hash",
+    "Encaps.Expand_A", "Encaps.AT_times_R", "Encaps.BhatT_times_R", "Encaps.Dither_UV", "Encaps.Quant_UV", "Encaps.Pack_CT", "Encaps.Hash_KDF",
+    "Decaps.ST_times_U", "Decaps.ReEnc_Expand_A", "Decaps.ReEnc_AT_times_R", "Decaps.ReEnc_BhatT_times_R", "Decaps.ReEnc_Dither_UV", "Decaps.ReEnc_Quant_UV", "Decaps.Hash_KDF",
+    "notes",
 ]
 
 TABLE_FIELDS = [
     ("Level", None),
-    ("Implementation", None),
-    ("KEM KG", "KEM_KeyGen"),
-    ("KEM Enc", "KEM_Encaps"),
-    ("KEM Dec", "KEM_Decaps"),
-    ("Expand A", "Expand_A"),
-    ("A S", "A_times_S"),
-    ("A^T R", "AT_times_R"),
-    ("B^T R", "BhatT_times_R"),
-    ("S^T U", "ST_times_U"),
-    ("Dither", "Dither"),
-    ("Quant/Recon", "Quant_Recon"),
-    ("Hash/Pack", "Hash_Pack"),
+    ("Impl.", None),
+    ("KG Expand A", "KeyGen.Expand_A"),
+    ("KG A*S", "KeyGen.A_times_S"),
+    ("KG Quant", "KeyGen.Quant_PK"),
+    ("Enc Expand A", "Encaps.Expand_A"),
+    ("Enc A^T*R", "Encaps.AT_times_R"),
+    ("Enc B^T*R", "Encaps.BhatT_times_R"),
+    ("Enc Quant", "Encaps.Quant_UV"),
+    ("Dec S^T*U", "Decaps.ST_times_U"),
+    ("Dec ReEnc A^T*R", "Decaps.ReEnc_AT_times_R"),
+    ("Dec ReEnc B^T*R", "Decaps.ReEnc_BhatT_times_R"),
+    ("Dec Quant", "Decaps.ReEnc_Quant_UV"),
+    ("Hash/KDF", "All.Hash_KDF"),
 ]
+
+CAPTION = (
+    "The component timings are collected under the profiling build and are "
+    "reported as context-qualified profiling medians. They are intended to "
+    "identify implementation bottlenecks. They are not additive decompositions "
+    "of the normal full-KEM timings. Full KEM KeyGen, Encaps, and Decaps "
+    "timings are reported separately using the normal benchmark harness."
+)
 
 
 def fmt_num(value: float | None) -> str:
@@ -50,16 +61,21 @@ def fmt_kcycles(value: float | None) -> str:
 
 
 def sum_components(comp: dict[str, float], names: list[str]) -> float | None:
-    present = [comp[n] for n in names if n in comp]
-    if not present:
+    values = [comp[name] for name in names if name in comp]
+    if not values:
         return None
-    return sum(present)
+    return sum(values)
+
+
+def get_component(comp: dict[str, float], name: str) -> float | None:
+    return comp.get(name)
 
 
 def main(argv: list[str]) -> int:
     if len(argv) != 4:
         print("usage: summarize_profile_breakdown.py RAW.csv SUMMARY.csv TABLE.tex", file=sys.stderr)
         return 2
+
     raw_path, summary_path, table_path = map(Path, argv[1:])
     rows: dict[tuple[str, str, str, str], dict[str, float]] = {}
     with raw_path.open(newline="") as f:
@@ -68,49 +84,60 @@ def main(argv: list[str]) -> int:
             if row.get("status") != "ok":
                 continue
             key = (row["scheme"], row["level"], row["mode"], row["backend"])
-            comp = rows.setdefault(key, {})
-            comp[row["component"]] = comp.get(row["component"], 0.0) + float(row["cycles"])
+            component = row["component"]
+            # The raw CSV is already median-reduced per context-qualified component.
+            # Keep each context-qualified component separate and never merge names like
+            # KeyGen.Expand_A, Encaps.Expand_A, and Decaps.ReEnc_Expand_A.
+            rows.setdefault(key, {})[component] = float(row["cycles"])
 
     summary_path.parent.mkdir(parents=True, exist_ok=True)
     table_path.parent.mkdir(parents=True, exist_ok=True)
 
-    summary_rows = []
+    summary_rows: list[tuple[tuple[str, str, str, str], dict[str, float | None]]] = []
     mode_order = {"REFERENCE": 0, "FAST": 1}
     for key in sorted(rows, key=lambda k: (int(k[1]), mode_order.get(k[2], 99), k[3])):
-        scheme, level, mode, backend = key
         comp = rows[key]
         vals: dict[str, float | None] = {
-            "KEM_KeyGen": comp.get("KEM_KeyGen"),
-            "KEM_Encaps": comp.get("KEM_Encaps"),
-            "KEM_Decaps": comp.get("KEM_Decaps"),
-            "PKE_KeyGen": comp.get("PKE_KeyGen"),
-            "PKE_Enc": comp.get("PKE_Enc"),
-            "PKE_Dec": comp.get("PKE_Dec"),
-            "Expand_A": comp.get("Expand_A"),
-            "A_times_S": comp.get("A_times_S"),
-            "AT_times_R": comp.get("AT_times_R"),
-            "BhatT_times_R": comp.get("BhatT_times_R"),
-            "ST_times_U": comp.get("ST_times_U"),
-            "Dither": sum_components(comp, ["Dither_PK", "Dither_U", "Dither_V"]),
-            "Quant_Recon": sum_components(comp, ["Quant_PK", "Quant_U", "Quant_V", "Recon_PK", "Recon_U", "Recon_V"]),
-            "Pack_Unpack": sum_components(comp, ["Pack_PK", "Unpack_PK", "Pack_CT", "Unpack_CT", "Pack_SK", "Unpack_SK"]),
-            "Hash_KDF": sum_components(comp, ["FO_Hash", "PK_Hash", "KDF"]),
+            "KeyGen.Expand_A": get_component(comp, "KeyGen.Expand_A"),
+            "KeyGen.A_times_S": get_component(comp, "KeyGen.A_times_S"),
+            "KeyGen.Dither_PK": get_component(comp, "KeyGen.Dither_PK"),
+            "KeyGen.Quant_PK": get_component(comp, "KeyGen.Quant_PK"),
+            "KeyGen.Pack_PK": get_component(comp, "KeyGen.Pack_PK"),
+            "KeyGen.PK_Hash": get_component(comp, "KeyGen.PK_Hash"),
+            "Encaps.Expand_A": get_component(comp, "Encaps.Expand_A"),
+            "Encaps.AT_times_R": get_component(comp, "Encaps.AT_times_R"),
+            "Encaps.BhatT_times_R": get_component(comp, "Encaps.BhatT_times_R"),
+            "Encaps.Dither_UV": sum_components(comp, ["Encaps.Dither_U", "Encaps.Dither_V"]),
+            "Encaps.Quant_UV": sum_components(comp, ["Encaps.Quant_U", "Encaps.Quant_V"]),
+            "Encaps.Pack_CT": get_component(comp, "Encaps.Pack_CT"),
+            "Encaps.Hash_KDF": sum_components(comp, ["Encaps.PK_Hash", "Encaps.FO_Hash", "Encaps.KDF"]),
+            "Decaps.ST_times_U": get_component(comp, "Decaps.ST_times_U"),
+            "Decaps.ReEnc_Expand_A": get_component(comp, "Decaps.ReEnc_Expand_A"),
+            "Decaps.ReEnc_AT_times_R": get_component(comp, "Decaps.ReEnc_AT_times_R"),
+            "Decaps.ReEnc_BhatT_times_R": get_component(comp, "Decaps.ReEnc_BhatT_times_R"),
+            "Decaps.ReEnc_Dither_UV": sum_components(comp, ["Decaps.ReEnc_Dither_U", "Decaps.ReEnc_Dither_V"]),
+            "Decaps.ReEnc_Quant_UV": sum_components(comp, ["Decaps.ReEnc_Quant_U", "Decaps.ReEnc_Quant_V"]),
+            "Decaps.Hash_KDF": sum_components(comp, ["Decaps.FO_Hash", "Decaps.KDF"]),
         }
-        vals["Hash_Pack"] = sum_components(comp, ["FO_Hash", "PK_Hash", "KDF", "Pack_PK", "Unpack_PK", "Pack_CT", "Unpack_CT", "Pack_SK", "Unpack_SK"])
+        vals["All.Hash_KDF"] = sum_components(comp, ["Encaps.PK_Hash", "Encaps.FO_Hash", "Encaps.KDF", "Decaps.FO_Hash", "Decaps.KDF", "KeyGen.PK_Hash"])
         summary_rows.append((key, vals))
 
+    notes = "profile-build component medians only; normal full-KEM timings come from bench_levels_ref_avx2.sh"
     with summary_path.open("w", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=SUMMARY_FIELDS)
+        writer = csv.DictWriter(f, fieldnames=SUMMARY_FIELDS, lineterminator="\n")
         writer.writeheader()
         for (scheme, level, mode, backend), vals in summary_rows:
-            out = {"scheme": scheme, "level": level, "mode": mode, "backend": backend}
-            for field in SUMMARY_FIELDS[4:]:
+            out = {"scheme": scheme, "level": level, "mode": mode, "backend": backend, "notes": notes}
+            for field in SUMMARY_FIELDS[4:-1]:
                 out[field] = fmt_num(vals.get(field))
             writer.writerow(out)
 
     with table_path.open("w") as f:
         f.write("% Generated from Frost/benchmarks/breakdown_profile.csv. Values are kCycles.\n")
-        f.write("\\begin{tabular}{rrrrrrrrrrrrr}\n")
+        f.write("\\begin{table}[t]\n")
+        f.write("\\centering\n")
+        f.write(f"\\caption{{{CAPTION}}}\n")
+        f.write("\\begin{tabular}{rrrrrrrrrrrrrr}\n")
         f.write("\\toprule\n")
         f.write(" & ".join(title for title, _ in TABLE_FIELDS) + " " + (chr(92) * 2) + "\n")
         f.write("\\midrule\n")
@@ -122,6 +149,7 @@ def main(argv: list[str]) -> int:
             f.write(" & ".join(cells) + " " + (chr(92) * 2) + "\n")
         f.write("\\bottomrule\n")
         f.write("\\end{tabular}\n")
+        f.write("\\end{table}\n")
     return 0
 
 
