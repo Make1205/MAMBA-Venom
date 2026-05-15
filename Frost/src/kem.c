@@ -11,6 +11,9 @@
 #include <string.h>
 #include "../../common/sha3/fips202.h"
 #include "../../common/random/random.h"
+#if defined(FROST_PROFILE_BREAKDOWN) && !defined(PROFILE_ALL_LEVELS)
+#define PROFILE_ALL_LEVELS
+#endif
 #ifdef PROFILE_ALL_LEVELS
 #include <stdio.h>
 #if defined(__x86_64__) || defined(__i386__)
@@ -27,8 +30,9 @@ static inline unsigned long long prof_now_cycles(void)
 #endif
 static int prof_all_enabled(void)
 {
-    const char *p = getenv("PROFILE_ALL_LEVELS");
-    return (p != NULL && strcmp(p, "1") == 0);
+    const char *p = getenv("FROST_PROFILE_BREAKDOWN");
+    const char *legacy = getenv("PROFILE_ALL_LEVELS");
+    return (p != NULL && strcmp(p, "1") == 0) || (legacy != NULL && strcmp(legacy, "1") == 0);
 }
 #define PROF_DECL() unsigned long long __attribute__((unused)) __p_total=0,__p_t0=0
 #define PROF_BEGIN() do { if (prof_all_enabled()) __p_total = prof_now_cycles(); } while (0)

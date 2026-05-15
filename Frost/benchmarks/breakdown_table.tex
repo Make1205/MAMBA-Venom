@@ -1,0 +1,13 @@
+% Generated from Frost/benchmarks/breakdown_profile.csv. Values are kCycles.
+\begin{tabular}{rrrrrrrrrrrrr}
+\toprule
+Level & Implementation & KEM KG & KEM Enc & KEM Dec & Expand A & A S & A^T R & B^T R & S^T U & Dither & Quant/Recon & Hash/Pack \\
+\midrule
+128 & REFERENCE/ref & 1145.3 & 2367.5 & 2496.5 & 1522.1 & 359.7 & 1305.2 & 27.0 & 5.7 & 417.1 & 12.2 & 577.3 \\
+128 & FAST/avx2_u16 & 1156.4 & 1245.7 & 1220.7 & 886.7 & 238.5 & 450.4 & 33.7 & 7.5 & 431.7 & 15.2 & 592.7 \\
+192 & REFERENCE/ref & 3255.6 & 5171.6 & 5334.4 & 3932.8 & 1127.3 & 2945.9 & 46.5 & 9.9 & 899.5 & 35.8 & 1218.0 \\
+192 & FAST/avx2_u16 & 2822.0 & 2764.9 & 3275.1 & 2628.9 & 800.5 & 1569.4 & 52.0 & 15.7 & 881.2 & 44.1 & 1170.0 \\
+256 & REFERENCE/ref & 6860.8 & 8645.0 & 9033.7 & 7630.9 & 2335.2 & 5394.8 & 70.5 & 16.0 & 1315.5 & 37.4 & 2032.1 \\
+256 & FAST/avx2_u16 & 4583.8 & 4592.7 & 4859.3 & 5060.9 & 1300.8 & 2224.1 & 70.0 & 16.0 & 1235.3 & 35.8 & 1931.6 \\
+\bottomrule
+\end{tabular}
