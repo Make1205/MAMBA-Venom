@@ -67,10 +67,11 @@ By default, the script builds and benchmarks Frost-128/192/256 for:
 
 and writes a CSV with per-operation timing/cycle summary. Set `BENCH_LEVELS="128 192 256 384 512"` to include Frost-384/512; their FAST path uses the u32 full SHAKE4x implementation and is tagged separately in `notes`.
 
-By default, the public matrix A expansion backend is `AES128`. To compare AES128 and SHAKE128 A expansion in the same CSV, set `MATRIX_A_BACKENDS`:
+By default, one-command benchmark/profile runs cover both public matrix A expansion backends, `AES128` and `SHAKE128`. To restrict the run to one backend, set `MATRIX_A_BACKENDS`:
 
 ```sh
-MATRIX_A_BACKENDS="AES128 SHAKE128" ./scripts/bench_levels_ref_avx2.sh ./bench.csv
+MATRIX_A_BACKENDS="AES128" ./scripts/bench_levels_ref_avx2.sh ./bench-aes.csv
+MATRIX_A_BACKENDS="SHAKE128" ./scripts/bench_levels_ref_avx2.sh ./bench-shake.csv
 ```
 
 The script performs `make clean` before each `(matrix_backend, mode)` build so objects from different A-expansion backends are not mixed.
@@ -86,7 +87,7 @@ Environment toggles for benchmark orchestration:
 - `ONLY_MODE=<REFERENCE|FAST>` (`AVX2` is accepted as a compatibility alias for `FAST`)
 - `PROFILE_U32=0|1` (enable u32 profile logs for level 384/512)
 - `BENCH_LEVELS="128 192 256"` (default; set to include additional levels)
-- `MATRIX_A_BACKENDS="AES128 SHAKE128"` (default: `AES128`; runs each backend with clean REFERENCE and FAST rebuilds)
+- `MATRIX_A_BACKENDS="AES128 SHAKE128"` (default; set to `AES128` or `SHAKE128` to restrict the public matrix A expansion backend, with clean REFERENCE and FAST rebuilds for each selected backend)
 
 CSV naming conventions:
 
@@ -94,6 +95,8 @@ CSV naming conventions:
 - `implementation_backend`: true implementation tag, for example `ref`, `avx2_u16` (Frost-128/192/256 FAST), or `u32_full_shake4x` (Frost-384/512 FAST)
 - `matrix_backend`: public matrix A expansion backend (`AES128` or `SHAKE128`)
 - `notes`: mirrors the backend implementation tag for FAST rows and uses `u16`/`u32` for REFERENCE rows
+
+The component breakdown script uses the same `MATRIX_A_BACKENDS` backend selection and defaults to Frost-128/192/256 via `PROFILE_LEVELS`. Its summary CSV uses the same `mode`, `implementation_backend`, and `matrix_backend` meanings as the full-KEM benchmark CSV.
 
 
 ## Reference u16 streaming multiplication
