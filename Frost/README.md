@@ -60,12 +60,20 @@ Optional output path:
 ./scripts/bench_levels_ref_avx2.sh ./bench.csv
 ```
 
-The script will build and benchmark all five levels for:
+By default, the script builds and benchmarks Frost-128/192/256 for:
 
 - `OPT_LEVEL=REFERENCE`
-- `FAST` (implemented as `OPT_LEVEL=FAST`; Frost-128/192/256 use AVX2 u16 intrinsics, while Frost-384/512 use the u32 full SHAKE4x path)
+- `FAST` (implemented as `OPT_LEVEL=FAST`; Frost-128/192/256 use AVX2 u16 intrinsics)
 
-and write a CSV with per-operation timing/cycle summary.
+and writes a CSV with per-operation timing/cycle summary. Set `BENCH_LEVELS="128 192 256 384 512"` to include Frost-384/512; their FAST path uses the u32 full SHAKE4x implementation and is tagged separately in `notes`.
+
+By default, the public matrix A expansion backend is `AES128`. To compare AES128 and SHAKE128 A expansion in the same CSV, set `MATRIX_A_BACKENDS`:
+
+```sh
+MATRIX_A_BACKENDS="AES128 SHAKE128" ./scripts/bench_levels_ref_avx2.sh ./bench.csv
+```
+
+The script performs `make clean` before each `(matrix_backend, mode)` build so objects from different A-expansion backends are not mixed.
 
 
 When a benchmark run crashes/fails, the script keeps running and writes a `run_failed` row with failure status in the CSV.
@@ -77,11 +85,14 @@ Environment toggles for benchmark orchestration:
 - `ONLY_LEVEL=<128|192|256|384|512>`
 - `ONLY_MODE=<REFERENCE|FAST>` (`AVX2` is accepted as a compatibility alias for `FAST`)
 - `PROFILE_U32=0|1` (enable u32 profile logs for level 384/512)
+- `BENCH_LEVELS="128 192 256"` (default; set to include additional levels)
+- `MATRIX_A_BACKENDS="AES128 SHAKE128"` (default: `AES128`; runs each backend with clean REFERENCE and FAST rebuilds)
 
 CSV naming conventions:
 
 - `mode`: `REFERENCE` or `FAST`
-- `backend`: true implementation tag, for example `ref`, `avx2_u16` (Frost-128/192/256 FAST), or `u32_full_shake4x` (Frost-384/512 FAST)
+- `implementation_backend`: true implementation tag, for example `ref`, `avx2_u16` (Frost-128/192/256 FAST), or `u32_full_shake4x` (Frost-384/512 FAST)
+- `matrix_backend`: public matrix A expansion backend (`AES128` or `SHAKE128`)
 - `notes`: mirrors the backend implementation tag for FAST rows and uses `u16`/`u32` for REFERENCE rows
 
 

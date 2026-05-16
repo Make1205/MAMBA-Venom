@@ -2,7 +2,7 @@
 """Summarize context-qualified Frost breakdown profiling CSVs.
 
 Input raw CSV format:
-  scheme,level,mode,backend,component,cycles,iterations,status,notes
+  scheme,level,mode,implementation_backend,matrix_backend,component,cycles,iterations,status,notes
 
 The raw component names are context-qualified (for example KeyGen.Expand_A
 and Encaps.Expand_A). The summary intentionally avoids merging components
@@ -15,7 +15,7 @@ import sys
 from pathlib import Path
 
 SUMMARY_FIELDS = [
-    "scheme", "level", "mode", "backend",
+    "scheme", "level", "mode", "implementation_backend", "matrix_backend",
     "KeyGen.Expand_A", "KeyGen.A_times_S", "KeyGen.Dither_PK", "KeyGen.Quant_PK", "KeyGen.Pack_PK", "KeyGen.PK_Hash",
     "Encaps.Expand_A", "Encaps.AT_times_R", "Encaps.BhatT_times_R", "Encaps.Dither_UV", "Encaps.Quant_UV", "Encaps.Pack_CT", "Encaps.Hash_KDF",
     "Decaps.ST_times_U", "Decaps.ReEnc_Expand_A", "Decaps.ReEnc_AT_times_R", "Decaps.ReEnc_BhatT_times_R", "Decaps.ReEnc_Dither_UV", "Decaps.ReEnc_Quant_UV", "Decaps.Hash_KDF",
@@ -25,6 +25,7 @@ SUMMARY_FIELDS = [
 TABLE_FIELDS = [
     ("Level", None),
     ("Impl.", None),
+    ("Matrix A", None),
     ("KG Expand A", "KeyGen.Expand_A"),
     ("KG A*S", "KeyGen.A_times_S"),
     ("KG Quant", "KeyGen.Quant_PK"),
@@ -77,13 +78,15 @@ def main(argv: list[str]) -> int:
         return 2
 
     raw_path, summary_path, table_path = map(Path, argv[1:])
-    rows: dict[tuple[str, str, str, str], dict[str, float]] = {}
+    rows: dict[tuple[str, str, str, str, str], dict[str, float]] = {}
     with raw_path.open(newline="") as f:
         reader = csv.DictReader(f)
         for row in reader:
             if row.get("status") != "ok":
                 continue
-            key = (row["scheme"], row["level"], row["mode"], row["backend"])
+            impl_backend = row.get("implementation_backend") or row.get("backend", "")
+            matrix_backend = row.get("matrix_backend", "unknown")
+            key = (row["scheme"], row["level"], row["mode"], impl_backend, matrix_backend)
             component = row["component"]
             # The raw CSV is already median-reduced per context-qualified component.
             # Keep each context-qualified component separate and never merge names like
@@ -93,9 +96,9 @@ def main(argv: list[str]) -> int:
     summary_path.parent.mkdir(parents=True, exist_ok=True)
     table_path.parent.mkdir(parents=True, exist_ok=True)
 
-    summary_rows: list[tuple[tuple[str, str, str, str], dict[str, float | None]]] = []
+    summary_rows: list[tuple[tuple[str, str, str, str, str], dict[str, float | None]]] = []
     mode_order = {"REFERENCE": 0, "FAST": 1}
-    for key in sorted(rows, key=lambda k: (int(k[1]), mode_order.get(k[2], 99), k[3])):
+    for key in sorted(rows, key=lambda k: (int(k[1]), mode_order.get(k[2], 99), k[3], k[4])):
         comp = rows[key]
         vals: dict[str, float | None] = {
             "KeyGen.Expand_A": get_component(comp, "KeyGen.Expand_A"),
@@ -126,9 +129,9 @@ def main(argv: list[str]) -> int:
     with summary_path.open("w", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=SUMMARY_FIELDS, lineterminator="\n")
         writer.writeheader()
-        for (scheme, level, mode, backend), vals in summary_rows:
-            out = {"scheme": scheme, "level": level, "mode": mode, "backend": backend, "notes": notes}
-            for field in SUMMARY_FIELDS[4:-1]:
+        for (scheme, level, mode, impl_backend, matrix_backend), vals in summary_rows:
+            out = {"scheme": scheme, "level": level, "mode": mode, "implementation_backend": impl_backend, "matrix_backend": matrix_backend, "notes": notes}
+            for field in SUMMARY_FIELDS[5:-1]:
                 out[field] = fmt_num(vals.get(field))
             writer.writerow(out)
 
@@ -137,14 +140,14 @@ def main(argv: list[str]) -> int:
         f.write("\\begin{table}[t]\n")
         f.write("\\centering\n")
         f.write(f"\\caption{{{CAPTION}}}\n")
-        f.write("\\begin{tabular}{rrrrrrrrrrrrrr}\n")
+        f.write("\\begin{tabular}{rrrrrrrrrrrrrrr}\n")
         f.write("\\toprule\n")
         f.write(" & ".join(title for title, _ in TABLE_FIELDS) + " " + (chr(92) * 2) + "\n")
         f.write("\\midrule\n")
-        for (scheme, level, mode, backend), vals in summary_rows:
-            impl = f"{mode}/{backend}"
-            cells = [level, impl]
-            for _, field in TABLE_FIELDS[2:]:
+        for (scheme, level, mode, impl_backend, matrix_backend), vals in summary_rows:
+            impl = f"{mode}/{impl_backend}"
+            cells = [level, impl, matrix_backend]
+            for _, field in TABLE_FIELDS[3:]:
                 cells.append(fmt_kcycles(vals.get(field)))
             f.write(" & ".join(cells) + " " + (chr(92) * 2) + "\n")
         f.write("\\bottomrule\n")

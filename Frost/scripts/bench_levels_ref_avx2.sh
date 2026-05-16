@@ -5,7 +5,7 @@ SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 FROST_DIR=$(cd -- "${SCRIPT_DIR}/.." && pwd)
 OUT_CSV=${1:-"${FROST_DIR}/bench_results_$(date -u +%Y%m%dT%H%M%SZ).csv"}
 
-ALL_LEVELS=(128 192 256 384 512)
+read -r -a ALL_LEVELS <<< "${BENCH_LEVELS:-128 192 256}"
 ONLY_MODE=${ONLY_MODE:-}
 ONLY_LEVEL=${ONLY_LEVEL:-}
 RUN_REFERENCE=${RUN_REFERENCE:-1}
@@ -97,7 +97,7 @@ fi
 levels=("${ALL_LEVELS[@]}")
 [[ -n "$ONLY_LEVEL" ]] && levels=("$ONLY_LEVEL")
 
-printf 'scheme,level,implementation,matrix_backend,keygen_cycles,encaps_cycles,decaps_cycles,total_cycles,pk_bytes,ct_bytes,sk_bytes,ss_bytes,iterations,status,notes\n' > "$OUT_CSV"
+printf 'scheme,level,mode,implementation_backend,matrix_backend,keygen_cycles,encaps_cycles,decaps_cycles,total_cycles,pk_bytes,ct_bytes,sk_bytes,ss_bytes,iterations,status,notes\n' > "$OUT_CSV"
 echo "[info] Output CSV: $OUT_CSV"
 echo "[info] Running benchmarks for modes: ${modes[*]}"
 echo "[info] Matrix A backends: $MATRIX_A_BACKENDS"
@@ -127,7 +127,7 @@ for matrix_backend in "${matrix_backends[@]}"; do
     IFS=',' read -r exp_pk exp_ct exp_sk exp_ss <<< "$(expected_sizes "$level")"
     echo "[param-check] level=$level pk_bytes=$pkb ct_bytes=$ctb sk_bytes=$skb ss_bytes=$ssb"
     if [[ "$pkb" != "$exp_pk" || "$ctb" != "$exp_ct" || "$skb" != "$exp_sk" || "$ssb" != "$exp_ss" ]]; then
-      printf 'Frost,%s,%s,%s,,,,,%s,%s,%s,%s,%s,failed,size_mismatch\n' "$level" "$mode/$backend" "$matrix_backend" "$pkb" "$ctb" "$skb" "$ssb" "$correct_iters" >> "$OUT_CSV"
+      printf 'Frost,%s,%s,%s,%s,,,,,%s,%s,%s,%s,%s,failed,size_mismatch\n' "$level" "$mode" "$backend" "$matrix_backend" "$pkb" "$ctb" "$skb" "$ssb" "$correct_iters" >> "$OUT_CSV"
       echo "[error] level=$level size mismatch api=($pkb,$ctb,$skb,$ssb) expected=($exp_pk,$exp_ct,$exp_sk,$exp_ss)"
       continue
     fi
@@ -141,12 +141,12 @@ for matrix_backend in "${matrix_backends[@]}"; do
 
     if [[ $rc -eq 0 ]]; then
       IFS=',' read -r kcyc ecyc dcyc tcyc iters <<< "$(parse_cycles "$tmp_log")"
-      printf 'Frost,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,ok,%s\n' "$level" "$mode/$backend" "$matrix_backend" "$kcyc" "$ecyc" "$dcyc" "$tcyc" "$pkb" "$ctb" "$skb" "$ssb" "${iters:-$correct_iters}" "$notes" >> "$OUT_CSV"
+      printf 'Frost,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,ok,%s\n' "$level" "$mode" "$backend" "$matrix_backend" "$kcyc" "$ecyc" "$dcyc" "$tcyc" "$pkb" "$ctb" "$skb" "$ssb" "${iters:-$correct_iters}" "$notes" >> "$OUT_CSV"
     elif [[ $rc -eq 124 ]]; then
-      printf 'Frost,%s,%s,%s,,,,,%s,%s,%s,%s,%s,timeout,%s\n' "$level" "$mode/$backend" "$matrix_backend" "$pkb" "$ctb" "$skb" "$ssb" "$correct_iters" "$notes" >> "$OUT_CSV"
+      printf 'Frost,%s,%s,%s,%s,,,,,%s,%s,%s,%s,%s,timeout,%s\n' "$level" "$mode" "$backend" "$matrix_backend" "$pkb" "$ctb" "$skb" "$ssb" "$correct_iters" "$notes" >> "$OUT_CSV"
       echo "[warn] mode=$mode, level=$level timeout (${timeout_s}s)"
     else
-      printf 'Frost,%s,%s,%s,,,,,%s,%s,%s,%s,%s,failed,%s\n' "$level" "$mode/$backend" "$matrix_backend" "$pkb" "$ctb" "$skb" "$ssb" "$correct_iters" "$notes" >> "$OUT_CSV"
+      printf 'Frost,%s,%s,%s,%s,,,,,%s,%s,%s,%s,%s,failed,%s\n' "$level" "$mode" "$backend" "$matrix_backend" "$pkb" "$ctb" "$skb" "$ssb" "$correct_iters" "$notes" >> "$OUT_CSV"
       echo "[warn] mode=$mode, level=$level failed (exit=$rc)"
     fi
 

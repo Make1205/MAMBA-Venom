@@ -18,6 +18,7 @@ PROFILE_LEVELS=${PROFILE_LEVELS:-128 192 256}
 FROST_PROFILE_ITERATIONS=${FROST_PROFILE_ITERATIONS:-${PROFILE_ITERS:-10}}
 PROFILE_BENCH_SECONDS=${PROFILE_BENCH_SECONDS:-0}
 PROFILE_TIMEOUT=${PROFILE_TIMEOUT:-600}
+MATRIX_A_BACKENDS=${MATRIX_A_BACKENDS:-${MATRIX_A_BACKEND:-AES128}}
 
 level_bin(){ case "$1" in 128) echo frost128/test_KEM;;192) echo frost192/test_KEM;;256) echo frost256/test_KEM;;*) return 1;; esac; }
 backend_tag(){
@@ -46,44 +47,46 @@ read -r -a levels <<< "$PROFILE_LEVELS"
 [[ -n "$ONLY_LEVEL" ]] && levels=("$ONLY_LEVEL")
 
 mkdir -p "$(dirname -- "$OUT_CSV")" "${FROST_DIR}/benchmarks"
-printf 'scheme,level,mode,backend,component,cycles,iterations,status,notes\n' > "$OUT_CSV"
-
 tmpdir=$(mktemp -d)
 trap 'rm -rf "$tmpdir"' EXIT
+RAW_CSV="$tmpdir/raw_components.csv"
+printf 'scheme,level,mode,implementation_backend,matrix_backend,component,cycles,iterations,status,notes\n' > "$RAW_CSV"
+read -r -a matrix_backends <<< "$MATRIX_A_BACKENDS"
 
-for mode in "${modes[@]}"; do
-  echo "[profile] building mode=$mode with FROST_PROFILE_BREAKDOWN" >&2
-  make -C "$FROST_DIR" clean >/dev/null
-  if [[ "$mode" == "REFERENCE" ]]; then
-    make -C "$FROST_DIR" OPT_LEVEL=REFERENCE \
-      FROST_U16_STREAMING_MATMUL="$FROST_U16_STREAMING_MATMUL" \
-      FROST_U16_MATERIALIZED_A_MATMUL="$FROST_U16_MATERIALIZED_A_MATMUL" \
-      EXTRA_CFLAGS='-O3 -DFROST_PROFILE_BREAKDOWN' tests >/dev/null
-  else
-    make -C "$FROST_DIR" OPT_LEVEL=FAST \
-      FROST_U16_STREAMING_MATMUL="$FROST_U16_STREAMING_MATMUL" \
-      FROST_U16_MATERIALIZED_A_MATMUL="$FROST_U16_MATERIALIZED_A_MATMUL" \
-      EXTRA_CFLAGS='-O3 -DFROST_PROFILE_BREAKDOWN' tests >/dev/null
-  fi
+for matrix_backend in "${matrix_backends[@]}"; do
+  for mode in "${modes[@]}"; do
+    echo "[profile] building matrix_backend=$matrix_backend mode=$mode with FROST_PROFILE_BREAKDOWN" >&2
+    make -C "$FROST_DIR" clean >/dev/null
+    if [[ "$mode" == "REFERENCE" ]]; then
+      make -C "$FROST_DIR" OPT_LEVEL=REFERENCE MATRIX_A_BACKEND="$matrix_backend" \
+        FROST_U16_STREAMING_MATMUL="$FROST_U16_STREAMING_MATMUL" \
+        FROST_U16_MATERIALIZED_A_MATMUL="$FROST_U16_MATERIALIZED_A_MATMUL" \
+        EXTRA_CFLAGS='-O3 -DFROST_PROFILE_BREAKDOWN' tests >/dev/null
+    else
+      make -C "$FROST_DIR" OPT_LEVEL=FAST MATRIX_A_BACKEND="$matrix_backend" \
+        FROST_U16_STREAMING_MATMUL="$FROST_U16_STREAMING_MATMUL" \
+        FROST_U16_MATERIALIZED_A_MATMUL="$FROST_U16_MATERIALIZED_A_MATMUL" \
+        EXTRA_CFLAGS='-O3 -DFROST_PROFILE_BREAKDOWN' tests >/dev/null
+    fi
 
-  for level in "${levels[@]}"; do
+    for level in "${levels[@]}"; do
     bin=$(level_bin "$level")
     backend=$(backend_tag "$mode" "$level")
-    log="$tmpdir/${mode}_${level}.log"
-    echo "[profile] mode=$mode level=$level backend=$backend iterations=$FROST_PROFILE_ITERATIONS" >&2
+    log="$tmpdir/${matrix_backend}_${mode}_${level}.log"
+    echo "[profile] matrix_backend=$matrix_backend mode=$mode level=$level backend=$backend iterations=$FROST_PROFILE_ITERATIONS" >&2
     timeout "$PROFILE_TIMEOUT" env FROST_PROFILE_BREAKDOWN=1 PROFILE_ALL_LEVELS=1 \
       FROST_KEM_TEST_ITERATIONS="$FROST_PROFILE_ITERATIONS" \
       FROST_KEM_BENCH_SECONDS="$PROFILE_BENCH_SECONDS" \
       "$FROST_DIR/$bin" nobench >"$log" 2>&1
 
-    python3 - "$log" Frost "$level" "$mode" "$backend" >> "$OUT_CSV" <<'PY'
+    python3 - "$log" Frost "$level" "$mode" "$backend" "$matrix_backend" >> "$RAW_CSV" <<'PY'
 import csv
 import re
 import statistics
 import sys
 from collections import defaultdict
 
-log_path, scheme, level, mode, backend = sys.argv[1:]
+log_path, scheme, level, mode, backend, matrix_backend = sys.argv[1:]
 values = defaultdict(list)
 notes = {}
 
@@ -171,14 +174,18 @@ writer = csv.writer(sys.stdout, lineterminator="\n")
 for component in sorted(values):
     vals = values[component]
     median = int(round(statistics.median(vals)))
-    writer.writerow([scheme, level, mode, backend, component, median, len(vals), "ok", notes.get(component, "")])
+    writer.writerow([scheme, level, mode, backend, matrix_backend, component, median, len(vals), "ok", notes.get(component, "")])
 PY
+    done
   done
 done
 
-cp "$OUT_CSV" "$CANONICAL_RAW"
-python3 "${SCRIPT_DIR}/summarize_profile_breakdown.py" "$CANONICAL_RAW" "$SUMMARY_CSV" "$TABLE_TEX"
-echo "[profile] wrote raw CSV: $OUT_CSV" >&2
+cp "$RAW_CSV" "$CANONICAL_RAW"
+python3 "${SCRIPT_DIR}/summarize_profile_breakdown.py" "$CANONICAL_RAW" "$OUT_CSV" "$TABLE_TEX"
+if [[ "$SUMMARY_CSV" != "$OUT_CSV" ]]; then
+  cp "$OUT_CSV" "$SUMMARY_CSV"
+fi
+echo "[profile] wrote summary CSV: $OUT_CSV" >&2
 echo "[profile] updated canonical raw CSV: $CANONICAL_RAW" >&2
-echo "[profile] wrote summary CSV: $SUMMARY_CSV" >&2
+echo "[profile] updated canonical summary CSV: $SUMMARY_CSV" >&2
 echo "[profile] wrote LaTeX table: $TABLE_TEX" >&2
