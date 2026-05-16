@@ -14,6 +14,7 @@ FROST_U16_STREAMING_MATMUL=${FROST_U16_STREAMING_MATMUL:-0}
 FROST_U16_MATERIALIZED_A_MATMUL=${FROST_U16_MATERIALIZED_A_MATMUL:-0}
 PROFILE_U32=${PROFILE_U32:-0}
 REPS=${REPS:-}
+MATRIX_A_BACKENDS=${MATRIX_A_BACKENDS:-${MATRIX_A_BACKEND:-AES128}}
 
 source "${SCRIPT_DIR}/frost_profile_sizes.sh"
 
@@ -59,9 +60,9 @@ notes_for_run(){
 }
 
 audit_backend(){
-  local mode="$1" level="$2" backend="$3"
+  local mode="$1" level="$2" backend="$3" matrix_backend="$4"
   local use_reference=0 use_avx2=0 use_avx2_u32=0 force="${FORCE_USE_AVX2_FOR_L256:-0}" effective=""
-  local generation="${GENERATION_A:-AES_BY_LEVEL}"
+  local generation="$matrix_backend"
   if [[ "$mode" == "REFERENCE" ]]; then
     use_reference=1
     if [[ "$level" == "384" || "$level" == "512" ]]; then effective="frost_macrify_u32.c reference u32 path"; elif [[ "$FROST_U16_MATERIALIZED_A_MATMUL" == "1" ]]; then effective="frost_macrify_reference.c materialized u16 path"; else effective="frost_macrify_reference.c streaming u16 path"; fi
@@ -78,7 +79,7 @@ audit_backend(){
     use_avx2_u32=1
     effective="frost_macrify_u32.c u32_full_shake4x path"
   fi
-  echo "[backend-audit] level=$level mode=$mode backend_tag=$backend USE_REFERENCE=$use_reference USE_AVX2=$use_avx2 FORCE_USE_AVX2_FOR_L256=$force USE_AVX2_U32=$use_avx2_u32 GENERATION_A=$generation effective=$effective FROST_U16_STREAMING_MATMUL=$FROST_U16_STREAMING_MATMUL FROST_U16_MATERIALIZED_A_MATMUL=$FROST_U16_MATERIALIZED_A_MATMUL"
+  echo "[backend-audit] level=$level mode=$mode backend_tag=$backend USE_REFERENCE=$use_reference USE_AVX2=$use_avx2 FORCE_USE_AVX2_FOR_L256=$force USE_AVX2_U32=$use_avx2_u32 MATRIX_A_BACKEND=$generation effective=$effective FROST_U16_STREAMING_MATMUL=$FROST_U16_STREAMING_MATMUL FROST_U16_MATERIALIZED_A_MATMUL=$FROST_U16_MATERIALIZED_A_MATMUL"
 }
 
 modes=()
@@ -96,26 +97,29 @@ fi
 levels=("${ALL_LEVELS[@]}")
 [[ -n "$ONLY_LEVEL" ]] && levels=("$ONLY_LEVEL")
 
-printf 'scheme,level,mode,backend,keygen_cycles,encaps_cycles,decaps_cycles,total_cycles,pk_bytes,ct_bytes,sk_bytes,ss_bytes,iterations,status,notes\n' > "$OUT_CSV"
+printf 'scheme,level,implementation,matrix_backend,keygen_cycles,encaps_cycles,decaps_cycles,total_cycles,pk_bytes,ct_bytes,sk_bytes,ss_bytes,iterations,status,notes\n' > "$OUT_CSV"
 echo "[info] Output CSV: $OUT_CSV"
 echo "[info] Running benchmarks for modes: ${modes[*]}"
+echo "[info] Matrix A backends: $MATRIX_A_BACKENDS"
 
 echo "[info] PROFILE_U32=$PROFILE_U32"
 echo "[info] FROST_U16_STREAMING_MATMUL=$FROST_U16_STREAMING_MATMUL FROST_U16_MATERIALIZED_A_MATMUL=$FROST_U16_MATERIALIZED_A_MATMUL"
 
-for mode in "${modes[@]}"; do
-  echo "[info] ===== Building mode: $mode ====="
-  make -C "$FROST_DIR" clean >/dev/null
-  if [[ "$mode" == "REFERENCE" ]]; then
-    make -C "$FROST_DIR" OPT_LEVEL=REFERENCE FROST_U16_STREAMING_MATMUL="$FROST_U16_STREAMING_MATMUL" FROST_U16_MATERIALIZED_A_MATMUL="$FROST_U16_MATERIALIZED_A_MATMUL" tests >/dev/null
-  else
-    make -C "$FROST_DIR" OPT_LEVEL=FAST FROST_U16_STREAMING_MATMUL="$FROST_U16_STREAMING_MATMUL" FROST_U16_MATERIALIZED_A_MATMUL="$FROST_U16_MATERIALIZED_A_MATMUL" tests >/dev/null
-  fi
+read -r -a matrix_backends <<< "$MATRIX_A_BACKENDS"
+for matrix_backend in "${matrix_backends[@]}"; do
+  for mode in "${modes[@]}"; do
+    echo "[info] ===== Building matrix_backend=$matrix_backend mode=$mode ====="
+    make -C "$FROST_DIR" clean >/dev/null
+    if [[ "$mode" == "REFERENCE" ]]; then
+      make -C "$FROST_DIR" OPT_LEVEL=REFERENCE MATRIX_A_BACKEND="$matrix_backend" FROST_U16_STREAMING_MATMUL="$FROST_U16_STREAMING_MATMUL" FROST_U16_MATERIALIZED_A_MATMUL="$FROST_U16_MATERIALIZED_A_MATMUL" tests >/dev/null
+    else
+      make -C "$FROST_DIR" OPT_LEVEL=FAST MATRIX_A_BACKEND="$matrix_backend" FROST_U16_STREAMING_MATMUL="$FROST_U16_STREAMING_MATMUL" FROST_U16_MATERIALIZED_A_MATMUL="$FROST_U16_MATERIALIZED_A_MATMUL" tests >/dev/null
+    fi
 
-  for level in "${levels[@]}"; do
+    for level in "${levels[@]}"; do
     bin=$(level_bin "$level"); timeout_s=$(get_timeout_secs "$level"); correct_iters=$(get_correct_iters "$level"); bench_seconds=$(get_bench_seconds "$level")
     backend="$(backend_tag "$mode" "$level")"
-    audit_backend "$mode" "$level" "$backend"
+    audit_backend "$mode" "$level" "$backend" "$matrix_backend"
     notes="$(notes_for_run "$mode" "$level")"
 
     echo "[param-check] level=$level $(level_params "$level")"
@@ -123,7 +127,7 @@ for mode in "${modes[@]}"; do
     IFS=',' read -r exp_pk exp_ct exp_sk exp_ss <<< "$(expected_sizes "$level")"
     echo "[param-check] level=$level pk_bytes=$pkb ct_bytes=$ctb sk_bytes=$skb ss_bytes=$ssb"
     if [[ "$pkb" != "$exp_pk" || "$ctb" != "$exp_ct" || "$skb" != "$exp_sk" || "$ssb" != "$exp_ss" ]]; then
-      printf 'Frost,%s,%s,%s,,,,,%s,%s,%s,%s,%s,failed,size_mismatch\n' "$level" "$mode" "$backend" "$pkb" "$ctb" "$skb" "$ssb" "$correct_iters" >> "$OUT_CSV"
+      printf 'Frost,%s,%s,%s,,,,,%s,%s,%s,%s,%s,failed,size_mismatch\n' "$level" "$mode/$backend" "$matrix_backend" "$pkb" "$ctb" "$skb" "$ssb" "$correct_iters" >> "$OUT_CSV"
       echo "[error] level=$level size mismatch api=($pkb,$ctb,$skb,$ssb) expected=($exp_pk,$exp_ct,$exp_sk,$exp_ss)"
       continue
     fi
@@ -137,12 +141,12 @@ for mode in "${modes[@]}"; do
 
     if [[ $rc -eq 0 ]]; then
       IFS=',' read -r kcyc ecyc dcyc tcyc iters <<< "$(parse_cycles "$tmp_log")"
-      printf 'Frost,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,ok,%s\n' "$level" "$mode" "$backend" "$kcyc" "$ecyc" "$dcyc" "$tcyc" "$pkb" "$ctb" "$skb" "$ssb" "${iters:-$correct_iters}" "$notes" >> "$OUT_CSV"
+      printf 'Frost,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,ok,%s\n' "$level" "$mode/$backend" "$matrix_backend" "$kcyc" "$ecyc" "$dcyc" "$tcyc" "$pkb" "$ctb" "$skb" "$ssb" "${iters:-$correct_iters}" "$notes" >> "$OUT_CSV"
     elif [[ $rc -eq 124 ]]; then
-      printf 'Frost,%s,%s,%s,,,,,%s,%s,%s,%s,%s,timeout,%s\n' "$level" "$mode" "$backend" "$pkb" "$ctb" "$skb" "$ssb" "$correct_iters" "$notes" >> "$OUT_CSV"
+      printf 'Frost,%s,%s,%s,,,,,%s,%s,%s,%s,%s,timeout,%s\n' "$level" "$mode/$backend" "$matrix_backend" "$pkb" "$ctb" "$skb" "$ssb" "$correct_iters" "$notes" >> "$OUT_CSV"
       echo "[warn] mode=$mode, level=$level timeout (${timeout_s}s)"
     else
-      printf 'Frost,%s,%s,%s,,,,,%s,%s,%s,%s,%s,failed,%s\n' "$level" "$mode" "$backend" "$pkb" "$ctb" "$skb" "$ssb" "$correct_iters" "$notes" >> "$OUT_CSV"
+      printf 'Frost,%s,%s,%s,,,,,%s,%s,%s,%s,%s,failed,%s\n' "$level" "$mode/$backend" "$matrix_backend" "$pkb" "$ctb" "$skb" "$ssb" "$correct_iters" "$notes" >> "$OUT_CSV"
       echo "[warn] mode=$mode, level=$level failed (exit=$rc)"
     fi
 
@@ -150,6 +154,7 @@ for mode in "${modes[@]}"; do
       echo "[debug] ---- begin log mode=$mode level=$level ----"; cat "$tmp_log"; echo "[debug] ---- end log mode=$mode level=$level ----"
     fi
     rm -f "$tmp_log"
+    done
   done
 done
 

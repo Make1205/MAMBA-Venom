@@ -25,17 +25,18 @@ The first three profiles are synchronized to the formal paper parameter sets. `F
 | MAMBA-Frost-512 | 3072 | 3072 | 8 | 20 | 4 | 4 | 8 | 18 | 18 | 11 | 55328 | 55416 | 67680 | 64 | — | — |
 
 
-## Public matrix expansion PRG
+## Public matrix expansion backend
 
-Public matrix expansion is part of the concrete implementation assumption.
-Default builds use `GENERATION_A=AES_BY_LEVEL`: Frost-128 expands the public
-matrix with AES-128-ECB, while Frost-192 and Frost-256 expand it with
-AES-256-ECB from the 32-byte `seed_A`. Using AES-128 for all levels would
-introduce a 128-bit PRG term and is therefore not used as the default for the
-Frost-192/256 paper parameters.
+The default implementation uses `MATRIX_A_BACKEND=AES128`: all active Frost
+parameter sets expand the public matrix `A` from the public `seed_A` with
+AES-128-ECB. This public matrix expansion backend is separate from secret
+sampling, dither generation, FO coin derivation, hashes, KDF, quantization,
+reconstruction, packing, and the Frost parameter sets.
 
-The explicit `GENERATION_A=AES128` build knob is retained only for
-compatibility experiments; it is not the paper-level default for Frost-192/256.
+For Frost-SHAKE testing, `MATRIX_A_BACKEND=SHAKE128` switches only public
+matrix `A` expansion to SHAKE128 for Frost-128/192/256. AES and SHAKE backend
+KAT bytes are expected to differ, so keep generated outputs backend-labeled if
+saving them.
 
 ## Build
 

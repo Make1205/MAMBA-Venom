@@ -7,26 +7,18 @@
 * license and provenance notices apply.
 *********************************************************************************************/
 
-#if defined(USE_AES128_FOR_A) || defined(USE_AES_BY_LEVEL_FOR_A)
+#if defined(USE_AES128_FOR_A)
 #if !defined(USE_OPENSSL)
     #include "../../common/aes/aes.h"
 #else
     #include "../../common/aes/aes_openssl.h"
 #endif
 #define FROST_A_USES_AES
-#if defined(USE_AES_BY_LEVEL_FOR_A) && (CRYPTO_BYTES > 16)
-#define FROST_AES_A_SCHEDULE_BYTES (16*15)
-#define FROST_AES_A_LOAD_SCHEDULE AES256_load_schedule
-#define FROST_AES_A_ECB_ENC_SCH AES256_ECB_enc_sch
-#define FROST_AES_A_FREE_SCHEDULE AES256_free_schedule
-#define FROST_AES_A_EVP_CIPHER EVP_aes_256_ecb()
-#else
 #define FROST_AES_A_SCHEDULE_BYTES (16*11)
 #define FROST_AES_A_LOAD_SCHEDULE AES128_load_schedule
 #define FROST_AES_A_ECB_ENC_SCH AES128_ECB_enc_sch
 #define FROST_AES_A_FREE_SCHEDULE AES128_free_schedule
 #define FROST_AES_A_EVP_CIPHER EVP_aes_128_ecb()
-#endif
 #elif defined (USE_SHAKE128_FOR_A)
 #if !defined(USE_AVX2)
     #include "../../common/sha3/fips202.h"

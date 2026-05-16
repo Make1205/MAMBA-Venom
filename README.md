@@ -30,14 +30,13 @@ Current C core supports all five `MAMBA-Frost-128/192/256/384/512` profiles.
 | MAMBA-Frost-512 | 3072 | 3072 | 8 | 20 | 4 | 4 | 8 | 18 | 18 | 11 | 55328 | 55416 | 67680 | 64 | — | — |
 
 
-## Public matrix expansion PRG
+## Public matrix expansion backend
 
-In the active `Frost/` implementation, public matrix expansion is part of the
-concrete implementation assumption. Default builds use `GENERATION_A=AES_BY_LEVEL`:
-Frost-128 uses AES-128-ECB for public matrix expansion, while Frost-192 and
-Frost-256 use AES-256-ECB from the 32-byte `seed_A`. Using AES-128 for all
-levels would introduce a 128-bit PRG term and is therefore not used as the
-default for Frost-192/256 paper parameters.
+In the active `Frost/` implementation, default builds use
+`MATRIX_A_BACKEND=AES128`: Frost-128, Frost-192, and Frost-256 all expand the
+public matrix `A` from the public `seed_A` with AES-128-ECB. The optional
+`MATRIX_A_BACKEND=SHAKE128` path is a Frost-SHAKE test backend that replaces
+only public matrix expansion with SHAKE128.
 
 ## Repository contents
 
