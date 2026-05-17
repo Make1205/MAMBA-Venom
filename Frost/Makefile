@@ -38,11 +38,12 @@ else ifeq "$(OPT_LEVEL)" "FAST"
     endif
 endif
 
-USE_GENERATION_A=_AES128_FOR_A_
-ifeq "$(GENERATION_A)" "AES128"
-    USE_GENERATION_A=_AES128_FOR_A_
-else ifeq "$(GENERATION_A)" "SHAKE128"
-    USE_GENERATION_A=_SHAKE128_FOR_A_
+MATRIX_A_BACKEND ?= $(if $(GENERATION_A),$(GENERATION_A),AES128)
+USE_MATRIX_A_BACKEND=_AES128_FOR_A_
+ifeq "$(MATRIX_A_BACKEND)" "AES128"
+    USE_MATRIX_A_BACKEND=_AES128_FOR_A_
+else ifeq "$(MATRIX_A_BACKEND)" "SHAKE128"
+    USE_MATRIX_A_BACKEND=_SHAKE128_FOR_A_
 endif
 
 ifeq "$(ARCH)" "ARM"
@@ -72,7 +73,7 @@ else
 CFLAGS= $(EXTRA_CFLAGS)
 endif
 CFLAGS+= $(VALGRIND_CFLAGS)
-CFLAGS+= -std=gnu11 -Wall -Wextra -DNIX -D $(ARCHITECTURE) -D $(USE_OPT_LEVEL) -D $(USE_GENERATION_A) -D $(USING_OPENSSL)
+CFLAGS+= -std=gnu11 -Wall -Wextra -DNIX -D $(ARCHITECTURE) -D $(USE_OPT_LEVEL) -D $(USE_MATRIX_A_BACKEND) -D $(USING_OPENSSL)
 ifeq "$(USE_OPT_LEVEL)" "_FAST_"
 CFLAGS+= -DUSE_AVX2_U32
 endif
@@ -187,7 +188,7 @@ objs/sha3/fips202.o: ../common/sha3/fips202.c ../common/sha3/fips202.h
 SHAKE_OBJS := objs/sha3/fips202.o
 
 ifeq "$(USE_OPT_LEVEL)" "_FAST_"
-ifeq "$(GENERATION_A)" "SHAKE128"
+ifeq "$(MATRIX_A_BACKEND)" "SHAKE128"
 # SHAKEx4
 objs/sha3/fips202x4.o: ../common/sha3/fips202x4.c ../common/sha3/fips202x4.h
 	@mkdir -p $(@D)
@@ -277,7 +278,7 @@ lib512_for_KATs: $(KEM_FROST512_OBJS) $(AES_OBJS) $(SHAKE_OBJS) $(SHAKEx4_OBJS)
 
 KATS: lib128_for_KATs lib192_for_KATs lib256_for_KATs lib384_for_KATs lib512_for_KATs
 	@mkdir -p frost128/KAT frost192/KAT frost256/KAT frost384/KAT frost512/KAT
-ifeq "$(GENERATION_A)" "SHAKE128"
+ifeq "$(MATRIX_A_BACKEND)" "SHAKE128"
 	$(CC) $(CFLAGS) -L./frost128 tests/PQCtestKAT_kem128_shake.c tests/rng.c -lfrost_for_testing $(LDFLAGS) -o frost128/PQCtestKAT_kem_shake $(ARM_SETTING)
 	$(CC) $(CFLAGS) -L./frost192 tests/PQCtestKAT_kem192_shake.c tests/rng.c -lfrost_for_testing $(LDFLAGS) -o frost192/PQCtestKAT_kem_shake $(ARM_SETTING)
 	$(CC) $(CFLAGS) -L./frost256 tests/PQCtestKAT_kem256_shake.c tests/rng.c -lfrost_for_testing $(LDFLAGS) -o frost256/PQCtestKAT_kem_shake $(ARM_SETTING)
@@ -297,21 +298,21 @@ size_test:
 
 check: tests size_test
 
-test128:
+test128: tests
 ifeq "$(DO_VALGRIND_CHECK)" "TRUE"
 	valgrind --tool=memcheck --error-exitcode=1 --max-stackframe=20480000 frost128/test_KEM
 else
 	frost128/test_KEM
 endif
 
-test192:
+test192: tests
 ifeq "$(DO_VALGRIND_CHECK)" "TRUE"
 	valgrind --tool=memcheck --error-exitcode=1 --max-stackframe=20480000 frost192/test_KEM
 else
 	frost192/test_KEM
 endif
 
-test256:
+test256: tests
 ifeq "$(DO_VALGRIND_CHECK)" "TRUE"
 	valgrind --tool=memcheck --error-exitcode=1 --max-stackframe=20480000 frost256/test_KEM
 else

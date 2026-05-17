@@ -94,7 +94,7 @@
 #elif defined(_SHAKE128_FOR_A_)
     #define USE_SHAKE128_FOR_A
 #else
-    ##error -- missing method for generating matrix A
+    #error -- missing method for generating matrix A
 #endif
 
 

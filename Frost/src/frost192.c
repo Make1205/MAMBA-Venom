@@ -13,7 +13,7 @@
 
 
 // Parameters for "Frost-192"
-#define PARAMS_N 872
+#define PARAMS_N 920
 #define PARAMS_NBAR 8
 #define PARAMS_LOGQ 16
 #define PARAMS_Q (1 << PARAMS_LOGQ)
@@ -25,10 +25,10 @@
 #define BYTES_SALT 32
 #define BYTES_SEED_SE (2*CRYPTO_BYTES)
 #define BYTES_PKHASH CRYPTO_BYTES
-#define PARAMS_PK_LOGP 11
+#define PARAMS_PK_LOGP 12
 #define PARAMS_U_LOGP  11
 #define PARAMS_ETA 1
-#define PARAMS_V_LOGP  8
+#define PARAMS_V_LOGP  7
 
 #if (PARAMS_NBAR % 8 != 0)
 #error You have modified the cryptographic parameters. MAMBA-Frost requires PARAMS_NBAR to be a multiple of 8.

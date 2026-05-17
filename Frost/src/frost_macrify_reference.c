@@ -13,6 +13,12 @@
 #else
     #include "../../common/aes/aes_openssl.h"
 #endif
+#define FROST_A_USES_AES
+#define FROST_AES_A_SCHEDULE_BYTES (16*11)
+#define FROST_AES_A_LOAD_SCHEDULE AES128_load_schedule
+#define FROST_AES_A_ECB_ENC_SCH AES128_ECB_enc_sch
+#define FROST_AES_A_FREE_SCHEDULE AES128_free_schedule
+#define FROST_AES_A_EVP_CIPHER EVP_aes_128_ecb()
 #elif defined (USE_SHAKE128_FOR_A)
     #include "../../common/sha3/fips202.h"
 #endif
@@ -28,7 +34,7 @@ int frost_mul_add_as_plus_e(uint16_t *out, const uint16_t *s, const uint16_t *e,
     unsigned long long prof_t = prof_all_enabled() ? prof_now_cycles() : 0;
 #endif
 
-#if defined(USE_AES128_FOR_A)    // Matrix A generation using AES128, done per 128-bit block
+#if defined(FROST_A_USES_AES)    // Matrix A generation using AES128, done per 128-bit block
     size_t A_len = PARAMS_N * PARAMS_N * sizeof(int16_t);
     for (i = 0; i < PARAMS_N; i++) {
         for (j = 0; j < PARAMS_N; j += PARAMS_STRIPE_STEP) {
@@ -38,14 +44,14 @@ int frost_mul_add_as_plus_e(uint16_t *out, const uint16_t *s, const uint16_t *e,
     }
 
 #if !defined(USE_OPENSSL)
-    uint8_t aes_key_schedule[16*11];
-    AES128_load_schedule(seed_A, aes_key_schedule);
-    AES128_ECB_enc_sch((uint8_t*)A, A_len, aes_key_schedule, (uint8_t*)A);
+    uint8_t aes_key_schedule[FROST_AES_A_SCHEDULE_BYTES];
+    FROST_AES_A_LOAD_SCHEDULE(seed_A, aes_key_schedule);
+    FROST_AES_A_ECB_ENC_SCH((uint8_t*)A, A_len, aes_key_schedule, (uint8_t*)A);
 #else
     EVP_CIPHER_CTX *aes_key_schedule;
     int len;
     if (!(aes_key_schedule = EVP_CIPHER_CTX_new())) handleErrors();
-    if (1 != EVP_EncryptInit_ex(aes_key_schedule, EVP_aes_128_ecb(), NULL, seed_A, NULL)) handleErrors();
+    if (1 != EVP_EncryptInit_ex(aes_key_schedule, FROST_AES_A_EVP_CIPHER, NULL, seed_A, NULL)) handleErrors();
     if (1 != EVP_EncryptUpdate(aes_key_schedule, (uint8_t*)A, &len, (uint8_t*)A, A_len)) handleErrors();
 #endif
 #elif defined(USE_SHAKE128_FOR_A)  // Matrix A generation using SHAKE128, done per 16*N-bit row
@@ -80,8 +86,8 @@ int frost_mul_add_as_plus_e(uint16_t *out, const uint16_t *s, const uint16_t *e,
     frost_prof_mat_add_mul(prof_all_enabled() ? prof_now_cycles() - prof_t : 0);
 #endif
 
-#if defined(USE_AES128_FOR_A)
-    AES128_free_schedule(aes_key_schedule);
+#if defined(FROST_A_USES_AES)
+    FROST_AES_A_FREE_SCHEDULE(aes_key_schedule);
 #endif
     return 1;
 }
@@ -100,15 +106,15 @@ int frost_mul_add_sa_plus_e(uint16_t *out, const uint16_t *s, uint16_t *e, const
 
     memcpy(out, e, PARAMS_NBAR * PARAMS_N * sizeof(uint16_t));
 
-#if defined(USE_AES128_FOR_A)
+#if defined(FROST_A_USES_AES)
 #if !defined(USE_OPENSSL)
-    uint8_t aes_key_schedule[16*11];
-    AES128_load_schedule(seed_A, aes_key_schedule);
+    uint8_t aes_key_schedule[FROST_AES_A_SCHEDULE_BYTES];
+    FROST_AES_A_LOAD_SCHEDULE(seed_A, aes_key_schedule);
 #else
     EVP_CIPHER_CTX *aes_key_schedule;
     int len;
     if (!(aes_key_schedule = EVP_CIPHER_CTX_new())) handleErrors();
-    if (1 != EVP_EncryptInit_ex(aes_key_schedule, EVP_aes_128_ecb(), NULL, seed_A, NULL)) handleErrors();
+    if (1 != EVP_EncryptInit_ex(aes_key_schedule, FROST_AES_A_EVP_CIPHER, NULL, seed_A, NULL)) handleErrors();
 #endif
 #elif defined(USE_SHAKE128_FOR_A)
     uint8_t seed_A_separated[2 + BYTES_SEED_A];
@@ -122,14 +128,14 @@ int frost_mul_add_sa_plus_e(uint16_t *out, const uint16_t *s, uint16_t *e, const
 #ifdef PROFILE_ALL_LEVELS
         prof_t = prof_all_enabled() ? prof_now_cycles() : 0;
 #endif
-#if defined(USE_AES128_FOR_A)
+#if defined(FROST_A_USES_AES)
         memset(A_row, 0, PARAMS_N * sizeof(int16_t));
         for (i = 0; i < PARAMS_N; i += PARAMS_STRIPE_STEP) {
             A_row[i] = UINT16_TO_LE(j);
             A_row[i + 1] = UINT16_TO_LE(i);
         }
 #if !defined(USE_OPENSSL)
-        AES128_ECB_enc_sch((uint8_t*)A_row, PARAMS_N * sizeof(int16_t), aes_key_schedule, (uint8_t*)A_row);
+        FROST_AES_A_ECB_ENC_SCH((uint8_t*)A_row, PARAMS_N * sizeof(int16_t), aes_key_schedule, (uint8_t*)A_row);
 #else
         if (1 != EVP_EncryptUpdate(aes_key_schedule, (uint8_t*)A_row, &len, (uint8_t*)A_row, PARAMS_N * sizeof(int16_t))) handleErrors();
 #endif
@@ -160,8 +166,8 @@ int frost_mul_add_sa_plus_e(uint16_t *out, const uint16_t *s, uint16_t *e, const
     frost_prof_mat_add_mul(prof_mul);
 #endif
 
-#if defined(USE_AES128_FOR_A)
-    AES128_free_schedule(aes_key_schedule);
+#if defined(FROST_A_USES_AES)
+    FROST_AES_A_FREE_SCHEDULE(aes_key_schedule);
 #endif
     return 1;
 #else
@@ -170,7 +176,7 @@ int frost_mul_add_sa_plus_e(uint16_t *out, const uint16_t *s, uint16_t *e, const
     unsigned long long prof_t = prof_all_enabled() ? prof_now_cycles() : 0;
 #endif
 
-#if defined(USE_AES128_FOR_A)    // Matrix A generation using AES128, done per 128-bit block
+#if defined(FROST_A_USES_AES)    // Matrix A generation using AES128, done per 128-bit block
     size_t A_len = PARAMS_N * PARAMS_N * sizeof(int16_t);
     for (i = 0; i < PARAMS_N; i++) {
         for (j = 0; j < PARAMS_N; j += PARAMS_STRIPE_STEP) {
@@ -180,14 +186,14 @@ int frost_mul_add_sa_plus_e(uint16_t *out, const uint16_t *s, uint16_t *e, const
     }
 
 #if !defined(USE_OPENSSL)
-    uint8_t aes_key_schedule[16*11];
-    AES128_load_schedule(seed_A, aes_key_schedule);
-    AES128_ECB_enc_sch((uint8_t*)A, A_len, aes_key_schedule, (uint8_t*)A);
+    uint8_t aes_key_schedule[FROST_AES_A_SCHEDULE_BYTES];
+    FROST_AES_A_LOAD_SCHEDULE(seed_A, aes_key_schedule);
+    FROST_AES_A_ECB_ENC_SCH((uint8_t*)A, A_len, aes_key_schedule, (uint8_t*)A);
 #else
     EVP_CIPHER_CTX *aes_key_schedule;
     int len;
     if (!(aes_key_schedule = EVP_CIPHER_CTX_new())) handleErrors();
-    if (1 != EVP_EncryptInit_ex(aes_key_schedule, EVP_aes_128_ecb(), NULL, seed_A, NULL)) handleErrors();
+    if (1 != EVP_EncryptInit_ex(aes_key_schedule, FROST_AES_A_EVP_CIPHER, NULL, seed_A, NULL)) handleErrors();
     if (1 != EVP_EncryptUpdate(aes_key_schedule, (uint8_t*)A, &len, (uint8_t*)A, A_len)) handleErrors();
 #endif
 #elif defined (USE_SHAKE128_FOR_A)  // Matrix A generation using SHAKE128, done per 16*N-bit row
@@ -222,8 +228,8 @@ int frost_mul_add_sa_plus_e(uint16_t *out, const uint16_t *s, uint16_t *e, const
     frost_prof_mat_add_mul(prof_all_enabled() ? prof_now_cycles() - prof_t : 0);
 #endif
 
-#if defined(USE_AES128_FOR_A)
-    AES128_free_schedule(aes_key_schedule);
+#if defined(FROST_A_USES_AES)
+    FROST_AES_A_FREE_SCHEDULE(aes_key_schedule);
 #endif
     return 1;
 #endif

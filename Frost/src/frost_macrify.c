@@ -13,6 +13,12 @@
 #else
     #include "../../common/aes/aes_openssl.h"
 #endif
+#define FROST_A_USES_AES
+#define FROST_AES_A_SCHEDULE_BYTES (16*11)
+#define FROST_AES_A_LOAD_SCHEDULE AES128_load_schedule
+#define FROST_AES_A_ECB_ENC_SCH AES128_ECB_enc_sch
+#define FROST_AES_A_FREE_SCHEDULE AES128_free_schedule
+#define FROST_AES_A_EVP_CIPHER EVP_aes_128_ecb()
 #elif defined (USE_SHAKE128_FOR_A)
 #if !defined(USE_AVX2)
     #include "../../common/sha3/fips202.h"
@@ -39,16 +45,16 @@ int frost_mul_add_as_plus_e(uint16_t *out, const uint16_t *s, const uint16_t *e,
         *((uint32_t*)&out[i]) = *((uint32_t*)&e[i]);
     }
 
-#if defined(USE_AES128_FOR_A)
+#if defined(FROST_A_USES_AES)
     int16_t a_row_temp[4*PARAMS_N] = {0};                       // Take four lines of A at once
 #if !defined(USE_OPENSSL)
-    uint8_t aes_key_schedule[16*11];
-    AES128_load_schedule(seed_A, aes_key_schedule);
+    uint8_t aes_key_schedule[FROST_AES_A_SCHEDULE_BYTES];
+    FROST_AES_A_LOAD_SCHEDULE(seed_A, aes_key_schedule);
 #else
     EVP_CIPHER_CTX *aes_key_schedule;
     int len;
     if (!(aes_key_schedule = EVP_CIPHER_CTX_new())) handleErrors();
-    if (1 != EVP_EncryptInit_ex(aes_key_schedule, EVP_aes_128_ecb(), NULL, seed_A, NULL)) handleErrors();
+    if (1 != EVP_EncryptInit_ex(aes_key_schedule, FROST_AES_A_EVP_CIPHER, NULL, seed_A, NULL)) handleErrors();
 #endif
 
     for (j = 0; j < PARAMS_N; j += PARAMS_STRIPE_STEP) {
@@ -70,7 +76,7 @@ int frost_mul_add_as_plus_e(uint16_t *out, const uint16_t *s, const uint16_t *e,
         }
 
 #if !defined(USE_OPENSSL)
-        AES128_ECB_enc_sch((uint8_t*)a_row_temp, 4*PARAMS_N*sizeof(int16_t), aes_key_schedule, (uint8_t*)a_row);
+        FROST_AES_A_ECB_ENC_SCH((uint8_t*)a_row_temp, 4*PARAMS_N*sizeof(int16_t), aes_key_schedule, (uint8_t*)a_row);
 #else
         if (1 != EVP_EncryptUpdate(aes_key_schedule, (uint8_t*)a_row, &len, (uint8_t*)a_row_temp, 4*PARAMS_N*sizeof(int16_t))) handleErrors();
 #endif
@@ -146,8 +152,8 @@ int frost_mul_add_as_plus_e(uint16_t *out, const uint16_t *s, const uint16_t *e,
     frost_prof_mat_add_mul(prof_mul);
 #endif
 
-#if defined(USE_AES128_FOR_A)
-    AES128_free_schedule(aes_key_schedule);
+#if defined(FROST_A_USES_AES)
+    FROST_AES_A_FREE_SCHEDULE(aes_key_schedule);
 #endif
     return 1;
 }
@@ -165,15 +171,15 @@ int frost_mul_add_sa_plus_e(uint16_t *out, const uint16_t *s, uint16_t *e, const
     unsigned long long prof_expand = 0, prof_mul = 0, prof_t = 0;
 #endif
 
-#if defined(USE_AES128_FOR_A)
+#if defined(FROST_A_USES_AES)
 #if !defined(USE_OPENSSL)
-    uint8_t aes_key_schedule[16*11];
-    AES128_load_schedule(seed_A, aes_key_schedule);
+    uint8_t aes_key_schedule[FROST_AES_A_SCHEDULE_BYTES];
+    FROST_AES_A_LOAD_SCHEDULE(seed_A, aes_key_schedule);
 #else
     EVP_CIPHER_CTX *aes_key_schedule;
     int len;
     if (!(aes_key_schedule = EVP_CIPHER_CTX_new())) handleErrors();
-    if (1 != EVP_EncryptInit_ex(aes_key_schedule, EVP_aes_128_ecb(), NULL, seed_A, NULL)) handleErrors();
+    if (1 != EVP_EncryptInit_ex(aes_key_schedule, FROST_AES_A_EVP_CIPHER, NULL, seed_A, NULL)) handleErrors();
 #endif
     // Initialize matrix used for encryption
     ALIGN_HEADER(32) uint16_t Ainit[PARAMS_N*8] ALIGN_FOOTER(32) = {0};
@@ -203,7 +209,7 @@ int frost_mul_add_sa_plus_e(uint16_t *out, const uint16_t *s, uint16_t *e, const
 
         size_t A_len = 8 * PARAMS_N * sizeof(uint16_t);
 #if !defined(USE_OPENSSL)
-        AES128_ECB_enc_sch((uint8_t*)Ainit, A_len, aes_key_schedule, (uint8_t*)A);
+        FROST_AES_A_ECB_ENC_SCH((uint8_t*)Ainit, A_len, aes_key_schedule, (uint8_t*)A);
 #else
         if (1 != EVP_EncryptUpdate(aes_key_schedule, (uint8_t*)A, &len, (uint8_t*)Ainit, A_len)) handleErrors();
 #endif
@@ -335,8 +341,8 @@ int frost_mul_add_sa_plus_e(uint16_t *out, const uint16_t *s, uint16_t *e, const
 #endif
     memcpy((unsigned char*)out, (unsigned char*)e, 2*PARAMS_N*PARAMS_NBAR);
 
-#if defined(USE_AES128_FOR_A)
-    AES128_free_schedule(aes_key_schedule);
+#if defined(FROST_A_USES_AES)
+    FROST_AES_A_FREE_SCHEDULE(aes_key_schedule);
 #endif
     return 1;
 }

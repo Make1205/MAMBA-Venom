@@ -1,0 +1,33 @@
+# Symmetric primitives audit for active Frost implementation
+
+Scope: active `Frost/` implementation only. Historical or legacy directories are intentionally out of scope for this audit.
+
+## Summary
+
+- Default public matrix `A` expansion uses AES-128-ECB for all active Frost parameter sets. The matrix is public and reproducible from the 32-byte `seed_A`; this PRG is not used for secret sampling, FO coins, dither generation, hashing, KDF, quantization, reconstruction, or packing.
+- `MATRIX_A_BACKEND=AES128` is the default build path. `GENERATION_A=AES128` remains accepted as a compatibility alias through the Makefile defaulting logic.
+- `MATRIX_A_BACKEND=SHAKE128` is an optional public-matrix expansion backend for Frost-SHAKE testing. It replaces only public matrix `A` seed expansion and uses SHAKE128 for Frost-128/192/256.
+- Frost-192/256 continue to use profile-local SHAKE256 for KEM hashes, dither expansion, secret/noise seed expansion, FO coin derivation, public-key hash, and KDF where the profile-local `shake` macro is used.
+- Reference and FAST u16 backends share the same KEM code (`kem.c`) and the same compile-time public-matrix expansion selection. They differ in matrix multiplication implementation, not in KEM dither/hash/FO domain tags.
+
+## Active primitive map
+
+| Use | Files | Code path | Primitive | Domain / personalization | Level behavior | Notes |
+|---|---|---|---|---|---|---|
+| public matrix A expansion | `Frost/src/frost_macrify_reference.c`, `Frost/src/frost_macrify.c` | `frost_mul_add_as_plus_e`, `frost_mul_add_sa_plus_e` | Default `MATRIX_A_BACKEND=AES128`: AES-128-ECB. Optional `MATRIX_A_BACKEND=SHAKE128`: SHAKE128. | AES input blocks encode row/column indices; SHAKE path prepends a little-endian row index to `seed_A`. | Frost-128/192/256 all use AES-128 in the default backend; all use SHAKE128 in the optional Frost-SHAKE backend. | Public deterministic expansion from `seed_A`; AES and SHAKE KAT bytes are expected to differ. |
+| public-key dither D_pk | `Frost/src/kem.c` | `frost_expand_dither_local(..., DITHER_DOMAIN_PK, PARAMS_PK_LOGP)` | profile-local `shake` macro | `0xA1 || seed_A` | Frost-128 uses SHAKE128; Frost-192/256 use SHAKE256 | Used for public-key quantization and reconstruction. |
+| ciphertext dither D_U | `Frost/src/kem.c` | `frost_expand_dither_local(..., DITHER_DOMAIN_U, PARAMS_U_LOGP)` | profile-local `shake` macro | `0xB1 || salt` | Frost-128 uses SHAKE128; Frost-192/256 use SHAKE256 | Used for U component quantization and reconstruction. |
+| ciphertext dither D_V | `Frost/src/kem.c` | `frost_expand_dither_local(..., DITHER_DOMAIN_V, PARAMS_V_LOGP)` | profile-local `shake` macro | `0xC1 || salt` | Frost-128 uses SHAKE128; Frost-192/256 use SHAKE256 | Used for V component quantization and reconstruction. |
+| secret S sampling | `Frost/src/kem.c`, `Frost/src/noise.c` | `shake_input_seedSE[0] = 0x5F`; `shake((uint8_t*)S, ...)`; `frost_sample_n` | profile-local `shake` macro followed by CBD sampler `frost_sample_n` | `0x5F || seedSE`; `seedSE` comes from keygen randomness and is stored in the KEM secret key | Frost-128 uses SHAKE128; Frost-192/256 use SHAKE256; `PARAMS_ETA` controls CBD width | Decapsulation regenerates S from the stored `seedSE` using the same domain byte. |
+| ephemeral R sampling | `Frost/src/kem.c`, `Frost/src/noise.c` | `shake_input_seedSE[0] = 0x96`; `shake((uint8_t*)Sp, ...)`; `frost_sample_n` | profile-local `shake` macro followed by CBD sampler `frost_sample_n` | `0x96 || seedSE'`; `seedSE'` is derived by the FO/coin hash | Frost-128 uses SHAKE128; Frost-192/256 use SHAKE256; `PARAMS_ETA` controls CBD width | Encapsulation and decapsulation re-encryption use the same R derivation. |
+| FO hash / coin derivation | `Frost/src/kem.c` | `shake(G2out, BYTES_SEED_SE + CRYPTO_BYTES, G2in, BYTES_PKHASH + BYTES_MU + BYTES_SALT)` | profile-local `shake` macro | input is `h_pk || mu || salt`; no extra byte tag beyond structured concatenation | Frost-128 uses SHAKE128; Frost-192/256 use SHAKE256 | Output is split into `seedSE'` for R sampling and `k` for final KDF input. |
+| public-key hash | `Frost/src/kem.c` | `shake(sk_pkh, BYTES_PKHASH, pk, CRYPTO_PUBLICKEYBYTES)` and `shake(pkh, BYTES_PKHASH, pk, CRYPTO_PUBLICKEYBYTES)` | profile-local `shake` macro | full public key bytes; no extra byte tag | Frost-128 uses SHAKE128 with 16-byte output; Frost-192/256 use SHAKE256 with 24/32-byte output | Keygen stores `h_pk` in the secret key; encaps recomputes it from `pk`. |
+| final KDF | `Frost/src/kem.c` | `shake(ss, CRYPTO_BYTES, Fin, CRYPTO_CIPHERTEXTBYTES + CRYPTO_BYTES)` | profile-local `shake` macro | input is `ct || k_or_s`; no extra byte tag | Frost-128 uses SHAKE128; Frost-192/256 use SHAKE256 | Decapsulation uses `ct_select` to choose `k'` or fallback secret `s` before this hash. |
+| random seed generation | `Frost/src/kem.c`, `common/random/random.c`, KAT tests in `Frost/tests` | `randombytes(...)`; `randombytes_init(...)` in KAT RNG | Normal build: OS RNG (`/dev/urandom` on NIX, BCrypt on Windows). KAT tests: AES-256-CTR DRBG in `Frost/tests/rng.c` | Normal build has no Frost-specific domain tag; KAT seed is the NIST-style 48-byte test seed | Independent of Frost level except requested byte counts | Keygen samples `randomness_s || randomness_seedSE || randomness_z`; encaps samples `mu || salt`. |
+| seed_A derivation | `Frost/src/kem.c` | `shake(pk_seedA, BYTES_SEED_A, randomness_z, BYTES_SEED_A)` | profile-local `shake` macro | `randomness_z`; no extra byte tag | Frost-128 uses SHAKE128; Frost-192/256 use SHAKE256 | `seed_A` then drives public matrix expansion. |
+| Reference vs FAST domain tags | `Frost/src/kem.c`, `Frost/src/frost_macrify_reference.c`, `Frost/src/frost_macrify.c` | shared KEM functions and per-backend matrix helpers | Same KEM `shake` calls and dither/noise tags; same selected A-generation backend | `0xA1`, `0xB1`, `0xC1`, `0x5F`, `0x96`; A-generation row/column personalization | Same for Frost-128/192/256 | FAST changes matrix arithmetic implementation only; it does not introduce separate KEM hash/dither domain tags. |
+| active old FrodoKEM names/comments | `Frost/src`, `Frost/tests`, `Frost/scripts`, `README.md`, `Frost/README.md`, `docs` | `rg -n "frodo_" ...` | none found | none | none | The active Frost implementation/public docs do not contain `frodo_` matches at audit time. |
+
+## UNKNOWN items
+
+No required item is UNKNOWN for the active `Frost/` u16 paper profiles. If future audits include `Frost-384/512`, also inspect `Frost/src/kem_u32.c`, `Frost/src/frost_macrify_u32.c`, and `Frost/src/noise_u32.c` because they use the 32-bit backend-specific implementation.

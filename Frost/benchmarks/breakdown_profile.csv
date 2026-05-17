@@ -1,0 +1,319 @@
+scheme,level,mode,backend,component,cycles,iterations,status,notes
+Frost,128,REFERENCE,ref,Decaps.CT_Compare,1699,200,ok,decaps ciphertext comparison and key select
+Frost,128,REFERENCE,ref,Decaps.Decode_Message,697,200,ok,decaps message decode
+Frost,128,REFERENCE,ref,Decaps.Dither_U,61524,200,ok,decaps U dither for reconstruction
+Frost,128,REFERENCE,ref,Decaps.Dither_V,2153,200,ok,decaps V dither for reconstruction
+Frost,128,REFERENCE,ref,Decaps.FO_Hash,2098,200,ok,decaps G hash h_pk||muprime||salt
+Frost,128,REFERENCE,ref,Decaps.KDF,42147,200,ok,decaps final shared-secret hash
+Frost,128,REFERENCE,ref,Decaps.KEM_Total_Profiled,2369403,200,ok,profiling-build decaps total; not official full-KEM timing
+Frost,128,REFERENCE,ref,Decaps.ReEnc_AT_times_R,611443,200,ok,decaps re-encryption A^T*R multiplication
+Frost,128,REFERENCE,ref,Decaps.ReEnc_BhatT_times_R,12496,200,ok,decaps re-encryption B^T*R multiplication
+Frost,128,REFERENCE,ref,Decaps.ReEnc_Dither_PK,61522,200,ok,decaps re-encryption public-key dither
+Frost,128,REFERENCE,ref,Decaps.ReEnc_Dither_U,62413,200,ok,decaps re-encryption U dither
+Frost,128,REFERENCE,ref,Decaps.ReEnc_Dither_V,2175,200,ok,decaps re-encryption V dither
+Frost,128,REFERENCE,ref,Decaps.ReEnc_Expand_A,542552,200,ok,decaps re-encryption A expansion
+Frost,128,REFERENCE,ref,Decaps.ReEnc_Quant_U,1590,200,ok,decaps re-encryption U quantization
+Frost,128,REFERENCE,ref,Decaps.ReEnc_Quant_V,1279,200,ok,decaps re-encryption V quantization and message add
+Frost,128,REFERENCE,ref,Decaps.ReEnc_Recon_PK,1483,200,ok,decaps re-encryption public-key reconstruction
+Frost,128,REFERENCE,ref,Decaps.ReEnc_Unpack_PK,69423,200,ok,decaps re-encryption public-key unpack
+Frost,128,REFERENCE,ref,Decaps.Recon_U,1491,200,ok,decaps U reconstruction
+Frost,128,REFERENCE,ref,Decaps.Recon_V,590,200,ok,decaps V reconstruction
+Frost,128,REFERENCE,ref,Decaps.ST_times_U,5256,200,ok,decaps S^T*U multiplication
+Frost,128,REFERENCE,ref,Decaps.Sample_R,1628,200,ok,decaps reenc R CBD transform
+Frost,128,REFERENCE,ref,Decaps.Sample_S,62835,200,ok,decaps regenerate S from sk seed
+Frost,128,REFERENCE,ref,Decaps.SeedExpand_R,60942,200,ok,decaps reenc R XOF expansion
+Frost,128,REFERENCE,ref,Decaps.Unpack_CT,70433,200,ok,decaps ciphertext unpack
+Frost,128,REFERENCE,ref,Encaps.AT_times_R,611716,100,ok,encaps A^T*R multiplication
+Frost,128,REFERENCE,ref,Encaps.BhatT_times_R,12562,100,ok,encaps B^T*R multiplication
+Frost,128,REFERENCE,ref,Encaps.Dither_PK,61585,100,ok,encaps public-key dither for reconstruction
+Frost,128,REFERENCE,ref,Encaps.Dither_U,62518,100,ok,encaps U dither
+Frost,128,REFERENCE,ref,Encaps.Dither_V,2140,100,ok,encaps V dither
+Frost,128,REFERENCE,ref,Encaps.Encode_Message,791,100,ok,encaps message encoding and add
+Frost,128,REFERENCE,ref,Encaps.Expand_A,545049,100,ok,encaps A expansion for A^T*R
+Frost,128,REFERENCE,ref,Encaps.FO_Hash,2338,100,ok,G hash h_pk||mu||salt
+Frost,128,REFERENCE,ref,Encaps.KDF,42239,100,ok,encaps final shared-secret hash
+Frost,128,REFERENCE,ref,Encaps.KEM_Total_Profiled,2251514,100,ok,profiling-build encaps total; not official full-KEM timing
+Frost,128,REFERENCE,ref,Encaps.PK_Hash,41321,100,ok,encaps h_pk
+Frost,128,REFERENCE,ref,Encaps.Pack_CT,74085,100,ok,encaps ciphertext packing
+Frost,128,REFERENCE,ref,Encaps.Quant_U,1338,100,ok,encaps U quantization
+Frost,128,REFERENCE,ref,Encaps.Quant_V,576,100,ok,encaps V quantization
+Frost,128,REFERENCE,ref,Encaps.Recon_PK,1380,100,ok,encaps public-key reconstruction
+Frost,128,REFERENCE,ref,Encaps.Sample_Message,2854,100,ok,randombytes for mu and salt
+Frost,128,REFERENCE,ref,Encaps.Sample_R,1764,100,ok,CBD transform for R
+Frost,128,REFERENCE,ref,Encaps.SeedExpand_R,61293,100,ok,R XOF expansion
+Frost,128,REFERENCE,ref,Encaps.Unpack_PK,69380,100,ok,encaps public-key unpack
+Frost,128,REFERENCE,ref,KeyGen.A_times_S,324005,100,ok,keygen A*S multiplication
+Frost,128,REFERENCE,ref,KeyGen.Dither_PK,62104,100,ok,keygen public-key dither
+Frost,128,REFERENCE,ref,KeyGen.Expand_A,243677,100,ok,keygen A expansion
+Frost,128,REFERENCE,ref,KeyGen.KEM_Total_Profiled,896737,100,ok,profiling-build keygen total; not official full-KEM timing
+Frost,128,REFERENCE,ref,KeyGen.PK_Hash,40896,100,ok,keygen h_pk
+Frost,128,REFERENCE,ref,KeyGen.Pack_PK,72701,100,ok,keygen public-key packing
+Frost,128,REFERENCE,ref,KeyGen.Quant_PK,1534,100,ok,keygen public-key quantization
+Frost,128,REFERENCE,ref,KeyGen.Random,3586,100,ok,randombytes for keygen seeds
+Frost,128,REFERENCE,ref,KeyGen.Sample_S,1712,100,ok,CBD transform for S
+Frost,128,REFERENCE,ref,KeyGen.SeedExpand,63113,100,ok,seed_A and S XOF expansion
+Frost,192,REFERENCE,ref,Decaps.CT_Compare,2239,200,ok,decaps ciphertext comparison and key select
+Frost,192,REFERENCE,ref,Decaps.Decode_Message,987,200,ok,decaps message decode
+Frost,192,REFERENCE,ref,Decaps.Dither_U,133287,200,ok,decaps U dither for reconstruction
+Frost,192,REFERENCE,ref,Decaps.Dither_V,2167,200,ok,decaps V dither for reconstruction
+Frost,192,REFERENCE,ref,Decaps.FO_Hash,2076,200,ok,decaps G hash h_pk||muprime||salt
+Frost,192,REFERENCE,ref,Decaps.KDF,98506,200,ok,decaps final shared-secret hash
+Frost,192,REFERENCE,ref,Decaps.KEM_Total_Profiled,5350489,200,ok,profiling-build decaps total; not official full-KEM timing
+Frost,192,REFERENCE,ref,Decaps.ReEnc_AT_times_R,1446510,200,ok,decaps re-encryption A^T*R multiplication
+Frost,192,REFERENCE,ref,Decaps.ReEnc_BhatT_times_R,22526,200,ok,decaps re-encryption B^T*R multiplication
+Frost,192,REFERENCE,ref,Decaps.ReEnc_Dither_PK,133205,200,ok,decaps re-encryption public-key dither
+Frost,192,REFERENCE,ref,Decaps.ReEnc_Dither_U,134067,200,ok,decaps re-encryption U dither
+Frost,192,REFERENCE,ref,Decaps.ReEnc_Dither_V,2156,200,ok,decaps re-encryption V dither
+Frost,192,REFERENCE,ref,Decaps.ReEnc_Expand_A,1436325,200,ok,decaps re-encryption A expansion
+Frost,192,REFERENCE,ref,Decaps.ReEnc_Quant_U,5801,200,ok,decaps re-encryption U quantization
+Frost,192,REFERENCE,ref,Decaps.ReEnc_Quant_V,1462,200,ok,decaps re-encryption V quantization and message add
+Frost,192,REFERENCE,ref,Decaps.ReEnc_Recon_PK,4239,200,ok,decaps re-encryption public-key reconstruction
+Frost,192,REFERENCE,ref,Decaps.ReEnc_Unpack_PK,122080,200,ok,decaps re-encryption public-key unpack
+Frost,192,REFERENCE,ref,Decaps.Recon_U,4197,200,ok,decaps U reconstruction
+Frost,192,REFERENCE,ref,Decaps.Recon_V,639,200,ok,decaps V reconstruction
+Frost,192,REFERENCE,ref,Decaps.ST_times_U,9888,200,ok,decaps S^T*U multiplication
+Frost,192,REFERENCE,ref,Decaps.Sample_R,1863,200,ok,decaps reenc R CBD transform
+Frost,192,REFERENCE,ref,Decaps.Sample_S,133900,200,ok,decaps regenerate S from sk seed
+Frost,192,REFERENCE,ref,Decaps.SeedExpand_R,131966,200,ok,decaps reenc R XOF expansion
+Frost,192,REFERENCE,ref,Decaps.Unpack_CT,141986,200,ok,decaps ciphertext unpack
+Frost,192,REFERENCE,ref,Encaps.AT_times_R,1480328,100,ok,encaps A^T*R multiplication
+Frost,192,REFERENCE,ref,Encaps.BhatT_times_R,22530,100,ok,encaps B^T*R multiplication
+Frost,192,REFERENCE,ref,Encaps.Dither_PK,133646,100,ok,encaps public-key dither for reconstruction
+Frost,192,REFERENCE,ref,Encaps.Dither_U,134044,100,ok,encaps U dither
+Frost,192,REFERENCE,ref,Encaps.Dither_V,2189,100,ok,encaps V dither
+Frost,192,REFERENCE,ref,Encaps.Encode_Message,1278,100,ok,encaps message encoding and add
+Frost,192,REFERENCE,ref,Encaps.Expand_A,1453439,100,ok,encaps A expansion for A^T*R
+Frost,192,REFERENCE,ref,Encaps.FO_Hash,2330,100,ok,G hash h_pk||mu||salt
+Frost,192,REFERENCE,ref,Encaps.KDF,98393,100,ok,encaps final shared-secret hash
+Frost,192,REFERENCE,ref,Encaps.KEM_Total_Profiled,5212483,100,ok,profiling-build encaps total; not official full-KEM timing
+Frost,192,REFERENCE,ref,Encaps.PK_Hash,106571,100,ok,encaps h_pk
+Frost,192,REFERENCE,ref,Encaps.Pack_CT,152106,100,ok,encaps ciphertext packing
+Frost,192,REFERENCE,ref,Encaps.Quant_U,5805,100,ok,encaps U quantization
+Frost,192,REFERENCE,ref,Encaps.Quant_V,640,100,ok,encaps V quantization
+Frost,192,REFERENCE,ref,Encaps.Recon_PK,4306,100,ok,encaps public-key reconstruction
+Frost,192,REFERENCE,ref,Encaps.Sample_Message,4858,100,ok,randombytes for mu and salt
+Frost,192,REFERENCE,ref,Encaps.Sample_R,1927,100,ok,CBD transform for R
+Frost,192,REFERENCE,ref,Encaps.SeedExpand_R,132256,100,ok,R XOF expansion
+Frost,192,REFERENCE,ref,Encaps.Unpack_PK,122189,100,ok,encaps public-key unpack
+Frost,192,REFERENCE,ref,KeyGen.A_times_S,1114087,100,ok,keygen A*S multiplication
+Frost,192,REFERENCE,ref,KeyGen.Dither_PK,134197,100,ok,keygen public-key dither
+Frost,192,REFERENCE,ref,KeyGen.Expand_A,922038,100,ok,keygen A expansion
+Frost,192,REFERENCE,ref,KeyGen.KEM_Total_Profiled,2911117,100,ok,profiling-build keygen total; not official full-KEM timing
+Frost,192,REFERENCE,ref,KeyGen.PK_Hash,106472,100,ok,keygen h_pk
+Frost,192,REFERENCE,ref,KeyGen.Pack_PK,139826,100,ok,keygen public-key packing
+Frost,192,REFERENCE,ref,KeyGen.Quant_PK,5885,100,ok,keygen public-key quantization
+Frost,192,REFERENCE,ref,KeyGen.Random,4675,100,ok,randombytes for keygen seeds
+Frost,192,REFERENCE,ref,KeyGen.Sample_S,2060,100,ok,CBD transform for S
+Frost,192,REFERENCE,ref,KeyGen.SeedExpand,133809,100,ok,seed_A and S XOF expansion
+Frost,256,REFERENCE,ref,Decaps.CT_Compare,3327,200,ok,decaps ciphertext comparison and key select
+Frost,256,REFERENCE,ref,Decaps.Decode_Message,1040,200,ok,decaps message decode
+Frost,256,REFERENCE,ref,Decaps.Dither_U,184653,200,ok,decaps U dither for reconstruction
+Frost,256,REFERENCE,ref,Decaps.Dither_V,2054,200,ok,decaps V dither for reconstruction
+Frost,256,REFERENCE,ref,Decaps.FO_Hash,2042,200,ok,decaps G hash h_pk||muprime||salt
+Frost,256,REFERENCE,ref,Decaps.KDF,161058,200,ok,decaps final shared-secret hash
+Frost,256,REFERENCE,ref,Decaps.KEM_Total_Profiled,8112869,200,ok,profiling-build decaps total; not official full-KEM timing
+Frost,256,REFERENCE,ref,Decaps.ReEnc_AT_times_R,2399832,200,ok,decaps re-encryption A^T*R multiplication
+Frost,256,REFERENCE,ref,Decaps.ReEnc_BhatT_times_R,31380,200,ok,decaps re-encryption B^T*R multiplication
+Frost,256,REFERENCE,ref,Decaps.ReEnc_Dither_PK,184521,200,ok,decaps re-encryption public-key dither
+Frost,256,REFERENCE,ref,Decaps.ReEnc_Dither_U,185677,200,ok,decaps re-encryption U dither
+Frost,256,REFERENCE,ref,Decaps.ReEnc_Dither_V,2112,200,ok,decaps re-encryption V dither
+Frost,256,REFERENCE,ref,Decaps.ReEnc_Expand_A,2424534,200,ok,decaps re-encryption A expansion
+Frost,256,REFERENCE,ref,Decaps.ReEnc_Quant_U,6475,200,ok,decaps re-encryption U quantization
+Frost,256,REFERENCE,ref,Decaps.ReEnc_Quant_V,1461,200,ok,decaps re-encryption V quantization and message add
+Frost,256,REFERENCE,ref,Decaps.ReEnc_Recon_PK,3550,200,ok,decaps re-encryption public-key reconstruction
+Frost,256,REFERENCE,ref,Decaps.ReEnc_Unpack_PK,217485,200,ok,decaps re-encryption public-key unpack
+Frost,256,REFERENCE,ref,Decaps.Recon_U,3436,200,ok,decaps U reconstruction
+Frost,256,REFERENCE,ref,Decaps.Recon_V,640,200,ok,decaps V reconstruction
+Frost,256,REFERENCE,ref,Decaps.ST_times_U,13308,200,ok,decaps S^T*U multiplication
+Frost,256,REFERENCE,ref,Decaps.Sample_R,2238,200,ok,decaps reenc R CBD transform
+Frost,256,REFERENCE,ref,Decaps.Sample_S,185728,200,ok,decaps regenerate S from sk seed
+Frost,256,REFERENCE,ref,Decaps.SeedExpand_R,183408,200,ok,decaps reenc R XOF expansion
+Frost,256,REFERENCE,ref,Decaps.Unpack_CT,218367,200,ok,decaps ciphertext unpack
+Frost,256,REFERENCE,ref,Encaps.AT_times_R,2486225,100,ok,encaps A^T*R multiplication
+Frost,256,REFERENCE,ref,Encaps.BhatT_times_R,31395,100,ok,encaps B^T*R multiplication
+Frost,256,REFERENCE,ref,Encaps.Dither_PK,184822,100,ok,encaps public-key dither for reconstruction
+Frost,256,REFERENCE,ref,Encaps.Dither_U,185709,100,ok,encaps U dither
+Frost,256,REFERENCE,ref,Encaps.Dither_V,2146,100,ok,encaps V dither
+Frost,256,REFERENCE,ref,Encaps.Encode_Message,1197,100,ok,encaps message encoding and add
+Frost,256,REFERENCE,ref,Encaps.Expand_A,2442303,100,ok,encaps A expansion for A^T*R
+Frost,256,REFERENCE,ref,Encaps.FO_Hash,2408,100,ok,G hash h_pk||mu||salt
+Frost,256,REFERENCE,ref,Encaps.KDF,161030,100,ok,encaps final shared-secret hash
+Frost,256,REFERENCE,ref,Encaps.KEM_Total_Profiled,7967262,100,ok,profiling-build encaps total; not official full-KEM timing
+Frost,256,REFERENCE,ref,Encaps.PK_Hash,160174,100,ok,encaps h_pk
+Frost,256,REFERENCE,ref,Encaps.Pack_CT,236366,100,ok,encaps ciphertext packing
+Frost,256,REFERENCE,ref,Encaps.Quant_U,6452,100,ok,encaps U quantization
+Frost,256,REFERENCE,ref,Encaps.Quant_V,608,100,ok,encaps V quantization
+Frost,256,REFERENCE,ref,Encaps.Recon_PK,2896,100,ok,encaps public-key reconstruction
+Frost,256,REFERENCE,ref,Encaps.Sample_Message,5316,100,ok,randombytes for mu and salt
+Frost,256,REFERENCE,ref,Encaps.Sample_R,2428,100,ok,CBD transform for R
+Frost,256,REFERENCE,ref,Encaps.SeedExpand_R,183671,100,ok,R XOF expansion
+Frost,256,REFERENCE,ref,Encaps.Unpack_PK,217621,100,ok,encaps public-key unpack
+Frost,256,REFERENCE,ref,KeyGen.A_times_S,2082418,100,ok,keygen A*S multiplication
+Frost,256,REFERENCE,ref,KeyGen.Dither_PK,186213,100,ok,keygen public-key dither
+Frost,256,REFERENCE,ref,KeyGen.Expand_A,1849136,100,ok,keygen A expansion
+Frost,256,REFERENCE,ref,KeyGen.KEM_Total_Profiled,5395424,100,ok,profiling-build keygen total; not official full-KEM timing
+Frost,256,REFERENCE,ref,KeyGen.PK_Hash,159898,100,ok,keygen h_pk
+Frost,256,REFERENCE,ref,KeyGen.Pack_PK,234032,100,ok,keygen public-key packing
+Frost,256,REFERENCE,ref,KeyGen.Quant_PK,6721,100,ok,keygen public-key quantization
+Frost,256,REFERENCE,ref,KeyGen.Random,4383,100,ok,randombytes for keygen seeds
+Frost,256,REFERENCE,ref,KeyGen.Sample_S,2322,100,ok,CBD transform for S
+Frost,256,REFERENCE,ref,KeyGen.SeedExpand,185518,100,ok,seed_A and S XOF expansion
+Frost,128,FAST,avx2_u16,Decaps.CT_Compare,1669,200,ok,decaps ciphertext comparison and key select
+Frost,128,FAST,avx2_u16,Decaps.Decode_Message,737,200,ok,decaps message decode
+Frost,128,FAST,avx2_u16,Decaps.Dither_U,61463,200,ok,decaps U dither for reconstruction
+Frost,128,FAST,avx2_u16,Decaps.Dither_V,2134,200,ok,decaps V dither for reconstruction
+Frost,128,FAST,avx2_u16,Decaps.FO_Hash,2110,200,ok,decaps G hash h_pk||muprime||salt
+Frost,128,FAST,avx2_u16,Decaps.KDF,42018,200,ok,decaps final shared-secret hash
+Frost,128,FAST,avx2_u16,Decaps.KEM_Total_Profiled,1099213,200,ok,profiling-build decaps total; not official full-KEM timing
+Frost,128,FAST,avx2_u16,Decaps.ReEnc_AT_times_R,146476,200,ok,decaps re-encryption A^T*R multiplication
+Frost,128,FAST,avx2_u16,Decaps.ReEnc_BhatT_times_R,12500,200,ok,decaps re-encryption B^T*R multiplication
+Frost,128,FAST,avx2_u16,Decaps.ReEnc_Dither_PK,61516,200,ok,decaps re-encryption public-key dither
+Frost,128,FAST,avx2_u16,Decaps.ReEnc_Dither_U,62103,200,ok,decaps re-encryption U dither
+Frost,128,FAST,avx2_u16,Decaps.ReEnc_Dither_V,2105,200,ok,decaps re-encryption V dither
+Frost,128,FAST,avx2_u16,Decaps.ReEnc_Expand_A,246913,200,ok,decaps re-encryption A expansion
+Frost,128,FAST,avx2_u16,Decaps.ReEnc_Quant_U,1566,200,ok,decaps re-encryption U quantization
+Frost,128,FAST,avx2_u16,Decaps.ReEnc_Quant_V,1272,200,ok,decaps re-encryption V quantization and message add
+Frost,128,FAST,avx2_u16,Decaps.ReEnc_Recon_PK,1489,200,ok,decaps re-encryption public-key reconstruction
+Frost,128,FAST,avx2_u16,Decaps.ReEnc_Unpack_PK,69532,200,ok,decaps re-encryption public-key unpack
+Frost,128,FAST,avx2_u16,Decaps.Recon_U,1480,200,ok,decaps U reconstruction
+Frost,128,FAST,avx2_u16,Decaps.Recon_V,592,200,ok,decaps V reconstruction
+Frost,128,FAST,avx2_u16,Decaps.ST_times_U,5782,200,ok,decaps S^T*U multiplication
+Frost,128,FAST,avx2_u16,Decaps.Sample_R,1810,200,ok,decaps reenc R CBD transform
+Frost,128,FAST,avx2_u16,Decaps.Sample_S,62718,200,ok,decaps regenerate S from sk seed
+Frost,128,FAST,avx2_u16,Decaps.SeedExpand_R,61037,200,ok,decaps reenc R XOF expansion
+Frost,128,FAST,avx2_u16,Decaps.Unpack_CT,70263,200,ok,decaps ciphertext unpack
+Frost,128,FAST,avx2_u16,Encaps.AT_times_R,146924,100,ok,encaps A^T*R multiplication
+Frost,128,FAST,avx2_u16,Encaps.BhatT_times_R,12526,100,ok,encaps B^T*R multiplication
+Frost,128,FAST,avx2_u16,Encaps.Dither_PK,61722,100,ok,encaps public-key dither for reconstruction
+Frost,128,FAST,avx2_u16,Encaps.Dither_U,62192,100,ok,encaps U dither
+Frost,128,FAST,avx2_u16,Encaps.Dither_V,2123,100,ok,encaps V dither
+Frost,128,FAST,avx2_u16,Encaps.Encode_Message,708,100,ok,encaps message encoding and add
+Frost,128,FAST,avx2_u16,Encaps.Expand_A,248253,100,ok,encaps A expansion for A^T*R
+Frost,128,FAST,avx2_u16,Encaps.FO_Hash,2367,100,ok,G hash h_pk||mu||salt
+Frost,128,FAST,avx2_u16,Encaps.KDF,42141,100,ok,encaps final shared-secret hash
+Frost,128,FAST,avx2_u16,Encaps.KEM_Total_Profiled,1013560,100,ok,profiling-build encaps total; not official full-KEM timing
+Frost,128,FAST,avx2_u16,Encaps.PK_Hash,41269,100,ok,encaps h_pk
+Frost,128,FAST,avx2_u16,Encaps.Pack_CT,74860,100,ok,encaps ciphertext packing
+Frost,128,FAST,avx2_u16,Encaps.Quant_U,1326,100,ok,encaps U quantization
+Frost,128,FAST,avx2_u16,Encaps.Quant_V,566,100,ok,encaps V quantization
+Frost,128,FAST,avx2_u16,Encaps.Recon_PK,1378,100,ok,encaps public-key reconstruction
+Frost,128,FAST,avx2_u16,Encaps.Sample_Message,2622,100,ok,randombytes for mu and salt
+Frost,128,FAST,avx2_u16,Encaps.Sample_R,1668,100,ok,CBD transform for R
+Frost,128,FAST,avx2_u16,Encaps.SeedExpand_R,61349,100,ok,R XOF expansion
+Frost,128,FAST,avx2_u16,Encaps.Unpack_PK,69511,100,ok,encaps public-key unpack
+Frost,128,FAST,avx2_u16,KeyGen.A_times_S,200974,100,ok,keygen A*S multiplication
+Frost,128,FAST,avx2_u16,KeyGen.Dither_PK,62067,100,ok,keygen public-key dither
+Frost,128,FAST,avx2_u16,KeyGen.Expand_A,291572,100,ok,keygen A expansion
+Frost,128,FAST,avx2_u16,KeyGen.KEM_Total_Profiled,939925,100,ok,profiling-build keygen total; not official full-KEM timing
+Frost,128,FAST,avx2_u16,KeyGen.PK_Hash,40874,100,ok,keygen h_pk
+Frost,128,FAST,avx2_u16,KeyGen.Pack_PK,72975,100,ok,keygen public-key packing
+Frost,128,FAST,avx2_u16,KeyGen.Quant_PK,1470,100,ok,keygen public-key quantization
+Frost,128,FAST,avx2_u16,KeyGen.Random,3228,100,ok,randombytes for keygen seeds
+Frost,128,FAST,avx2_u16,KeyGen.Sample_S,1669,100,ok,CBD transform for S
+Frost,128,FAST,avx2_u16,KeyGen.SeedExpand,62949,100,ok,seed_A and S XOF expansion
+Frost,192,FAST,avx2_u16,Decaps.CT_Compare,2105,200,ok,decaps ciphertext comparison and key select
+Frost,192,FAST,avx2_u16,Decaps.Decode_Message,891,200,ok,decaps message decode
+Frost,192,FAST,avx2_u16,Decaps.Dither_U,133103,200,ok,decaps U dither for reconstruction
+Frost,192,FAST,avx2_u16,Decaps.Dither_V,2162,200,ok,decaps V dither for reconstruction
+Frost,192,FAST,avx2_u16,Decaps.FO_Hash,2024,200,ok,decaps G hash h_pk||muprime||salt
+Frost,192,FAST,avx2_u16,Decaps.KDF,98599,200,ok,decaps final shared-secret hash
+Frost,192,FAST,avx2_u16,Decaps.KEM_Total_Profiled,3062599,200,ok,profiling-build decaps total; not official full-KEM timing
+Frost,192,FAST,avx2_u16,Decaps.ReEnc_AT_times_R,623504,200,ok,decaps re-encryption A^T*R multiplication
+Frost,192,FAST,avx2_u16,Decaps.ReEnc_BhatT_times_R,22454,200,ok,decaps re-encryption B^T*R multiplication
+Frost,192,FAST,avx2_u16,Decaps.ReEnc_Dither_PK,133270,200,ok,decaps re-encryption public-key dither
+Frost,192,FAST,avx2_u16,Decaps.ReEnc_Dither_U,133649,200,ok,decaps re-encryption U dither
+Frost,192,FAST,avx2_u16,Decaps.ReEnc_Dither_V,2114,200,ok,decaps re-encryption V dither
+Frost,192,FAST,avx2_u16,Decaps.ReEnc_Expand_A,844967,200,ok,decaps re-encryption A expansion
+Frost,192,FAST,avx2_u16,Decaps.ReEnc_Quant_U,5768,200,ok,decaps re-encryption U quantization
+Frost,192,FAST,avx2_u16,Decaps.ReEnc_Quant_V,1376,200,ok,decaps re-encryption V quantization and message add
+Frost,192,FAST,avx2_u16,Decaps.ReEnc_Recon_PK,4207,200,ok,decaps re-encryption public-key reconstruction
+Frost,192,FAST,avx2_u16,Decaps.ReEnc_Unpack_PK,122623,200,ok,decaps re-encryption public-key unpack
+Frost,192,FAST,avx2_u16,Decaps.Recon_U,4200,200,ok,decaps U reconstruction
+Frost,192,FAST,avx2_u16,Decaps.Recon_V,626,200,ok,decaps V reconstruction
+Frost,192,FAST,avx2_u16,Decaps.ST_times_U,9292,200,ok,decaps S^T*U multiplication
+Frost,192,FAST,avx2_u16,Decaps.Sample_R,2160,200,ok,decaps reenc R CBD transform
+Frost,192,FAST,avx2_u16,Decaps.Sample_S,133652,200,ok,decaps regenerate S from sk seed
+Frost,192,FAST,avx2_u16,Decaps.SeedExpand_R,131887,200,ok,decaps reenc R XOF expansion
+Frost,192,FAST,avx2_u16,Decaps.Unpack_CT,142369,200,ok,decaps ciphertext unpack
+Frost,192,FAST,avx2_u16,Encaps.AT_times_R,553767,100,ok,encaps A^T*R multiplication
+Frost,192,FAST,avx2_u16,Encaps.BhatT_times_R,22529,100,ok,encaps B^T*R multiplication
+Frost,192,FAST,avx2_u16,Encaps.Dither_PK,133082,100,ok,encaps public-key dither for reconstruction
+Frost,192,FAST,avx2_u16,Encaps.Dither_U,133422,100,ok,encaps U dither
+Frost,192,FAST,avx2_u16,Encaps.Dither_V,2089,100,ok,encaps V dither
+Frost,192,FAST,avx2_u16,Encaps.Encode_Message,800,100,ok,encaps message encoding and add
+Frost,192,FAST,avx2_u16,Encaps.Expand_A,809103,100,ok,encaps A expansion for A^T*R
+Frost,192,FAST,avx2_u16,Encaps.FO_Hash,2236,100,ok,G hash h_pk||mu||salt
+Frost,192,FAST,avx2_u16,Encaps.KDF,98217,100,ok,encaps final shared-secret hash
+Frost,192,FAST,avx2_u16,Encaps.KEM_Total_Profiled,2592969,100,ok,profiling-build encaps total; not official full-KEM timing
+Frost,192,FAST,avx2_u16,Encaps.PK_Hash,106393,100,ok,encaps h_pk
+Frost,192,FAST,avx2_u16,Encaps.Pack_CT,149240,100,ok,encaps ciphertext packing
+Frost,192,FAST,avx2_u16,Encaps.Quant_U,5752,100,ok,encaps U quantization
+Frost,192,FAST,avx2_u16,Encaps.Quant_V,606,100,ok,encaps V quantization
+Frost,192,FAST,avx2_u16,Encaps.Recon_PK,4207,100,ok,encaps public-key reconstruction
+Frost,192,FAST,avx2_u16,Encaps.Sample_Message,3217,100,ok,randombytes for mu and salt
+Frost,192,FAST,avx2_u16,Encaps.Sample_R,1908,100,ok,CBD transform for R
+Frost,192,FAST,avx2_u16,Encaps.SeedExpand_R,131951,100,ok,R XOF expansion
+Frost,192,FAST,avx2_u16,Encaps.Unpack_PK,122043,100,ok,encaps public-key unpack
+Frost,192,FAST,avx2_u16,KeyGen.A_times_S,746407,100,ok,keygen A*S multiplication
+Frost,192,FAST,avx2_u16,KeyGen.Dither_PK,133570,100,ok,keygen public-key dither
+Frost,192,FAST,avx2_u16,KeyGen.Expand_A,947402,100,ok,keygen A expansion
+Frost,192,FAST,avx2_u16,KeyGen.KEM_Total_Profiled,2811595,100,ok,profiling-build keygen total; not official full-KEM timing
+Frost,192,FAST,avx2_u16,KeyGen.PK_Hash,106175,100,ok,keygen h_pk
+Frost,192,FAST,avx2_u16,KeyGen.Pack_PK,132677,100,ok,keygen public-key packing
+Frost,192,FAST,avx2_u16,KeyGen.Quant_PK,5776,100,ok,keygen public-key quantization
+Frost,192,FAST,avx2_u16,KeyGen.Random,4212,100,ok,randombytes for keygen seeds
+Frost,192,FAST,avx2_u16,KeyGen.Sample_S,1943,100,ok,CBD transform for S
+Frost,192,FAST,avx2_u16,KeyGen.SeedExpand,133891,100,ok,seed_A and S XOF expansion
+Frost,256,FAST,avx2_u16,Decaps.CT_Compare,3266,200,ok,decaps ciphertext comparison and key select
+Frost,256,FAST,avx2_u16,Decaps.Decode_Message,920,200,ok,decaps message decode
+Frost,256,FAST,avx2_u16,Decaps.Dither_U,184528,200,ok,decaps U dither for reconstruction
+Frost,256,FAST,avx2_u16,Decaps.Dither_V,2114,200,ok,decaps V dither for reconstruction
+Frost,256,FAST,avx2_u16,Decaps.FO_Hash,2040,200,ok,decaps G hash h_pk||muprime||salt
+Frost,256,FAST,avx2_u16,Decaps.KDF,161012,200,ok,decaps final shared-secret hash
+Frost,256,FAST,avx2_u16,Decaps.KEM_Total_Profiled,4624069,200,ok,profiling-build decaps total; not official full-KEM timing
+Frost,256,FAST,avx2_u16,Decaps.ReEnc_AT_times_R,993203,200,ok,decaps re-encryption A^T*R multiplication
+Frost,256,FAST,avx2_u16,Decaps.ReEnc_BhatT_times_R,31379,200,ok,decaps re-encryption B^T*R multiplication
+Frost,256,FAST,avx2_u16,Decaps.ReEnc_Dither_PK,184594,200,ok,decaps re-encryption public-key dither
+Frost,256,FAST,avx2_u16,Decaps.ReEnc_Dither_U,185319,200,ok,decaps re-encryption U dither
+Frost,256,FAST,avx2_u16,Decaps.ReEnc_Dither_V,2100,200,ok,decaps re-encryption V dither
+Frost,256,FAST,avx2_u16,Decaps.ReEnc_Expand_A,1571976,200,ok,decaps re-encryption A expansion
+Frost,256,FAST,avx2_u16,Decaps.ReEnc_Quant_U,6419,200,ok,decaps re-encryption U quantization
+Frost,256,FAST,avx2_u16,Decaps.ReEnc_Quant_V,1358,200,ok,decaps re-encryption V quantization and message add
+Frost,256,FAST,avx2_u16,Decaps.ReEnc_Recon_PK,3508,200,ok,decaps re-encryption public-key reconstruction
+Frost,256,FAST,avx2_u16,Decaps.ReEnc_Unpack_PK,217714,200,ok,decaps re-encryption public-key unpack
+Frost,256,FAST,avx2_u16,Decaps.Recon_U,3476,200,ok,decaps U reconstruction
+Frost,256,FAST,avx2_u16,Decaps.Recon_V,626,200,ok,decaps V reconstruction
+Frost,256,FAST,avx2_u16,Decaps.ST_times_U,13112,200,ok,decaps S^T*U multiplication
+Frost,256,FAST,avx2_u16,Decaps.Sample_R,2185,200,ok,decaps reenc R CBD transform
+Frost,256,FAST,avx2_u16,Decaps.Sample_S,185771,200,ok,decaps regenerate S from sk seed
+Frost,256,FAST,avx2_u16,Decaps.SeedExpand_R,183314,200,ok,decaps reenc R XOF expansion
+Frost,256,FAST,avx2_u16,Decaps.Unpack_CT,218680,200,ok,decaps ciphertext unpack
+Frost,256,FAST,avx2_u16,Encaps.AT_times_R,1096995,100,ok,encaps A^T*R multiplication
+Frost,256,FAST,avx2_u16,Encaps.BhatT_times_R,31473,100,ok,encaps B^T*R multiplication
+Frost,256,FAST,avx2_u16,Encaps.Dither_PK,184793,100,ok,encaps public-key dither for reconstruction
+Frost,256,FAST,avx2_u16,Encaps.Dither_U,185256,100,ok,encaps U dither
+Frost,256,FAST,avx2_u16,Encaps.Dither_V,2070,100,ok,encaps V dither
+Frost,256,FAST,avx2_u16,Encaps.Encode_Message,818,100,ok,encaps message encoding and add
+Frost,256,FAST,avx2_u16,Encaps.Expand_A,1575087,100,ok,encaps A expansion for A^T*R
+Frost,256,FAST,avx2_u16,Encaps.FO_Hash,2391,100,ok,G hash h_pk||mu||salt
+Frost,256,FAST,avx2_u16,Encaps.KDF,160888,100,ok,encaps final shared-secret hash
+Frost,256,FAST,avx2_u16,Encaps.KEM_Total_Profiled,4430947,100,ok,profiling-build encaps total; not official full-KEM timing
+Frost,256,FAST,avx2_u16,Encaps.PK_Hash,160069,100,ok,encaps h_pk
+Frost,256,FAST,avx2_u16,Encaps.Pack_CT,231628,100,ok,encaps ciphertext packing
+Frost,256,FAST,avx2_u16,Encaps.Quant_U,6394,100,ok,encaps U quantization
+Frost,256,FAST,avx2_u16,Encaps.Quant_V,602,100,ok,encaps V quantization
+Frost,256,FAST,avx2_u16,Encaps.Recon_PK,2859,100,ok,encaps public-key reconstruction
+Frost,256,FAST,avx2_u16,Encaps.Sample_Message,3484,100,ok,randombytes for mu and salt
+Frost,256,FAST,avx2_u16,Encaps.Sample_R,2379,100,ok,CBD transform for R
+Frost,256,FAST,avx2_u16,Encaps.SeedExpand_R,183489,100,ok,R XOF expansion
+Frost,256,FAST,avx2_u16,Encaps.Unpack_PK,217833,100,ok,encaps public-key unpack
+Frost,256,FAST,avx2_u16,KeyGen.A_times_S,1120722,100,ok,keygen A*S multiplication
+Frost,256,FAST,avx2_u16,KeyGen.Dither_PK,185259,100,ok,keygen public-key dither
+Frost,256,FAST,avx2_u16,KeyGen.Expand_A,1750796,100,ok,keygen A expansion
+Frost,256,FAST,avx2_u16,KeyGen.KEM_Total_Profiled,4143382,100,ok,profiling-build keygen total; not official full-KEM timing
+Frost,256,FAST,avx2_u16,KeyGen.PK_Hash,159758,100,ok,keygen h_pk
+Frost,256,FAST,avx2_u16,KeyGen.Pack_PK,230252,100,ok,keygen public-key packing
+Frost,256,FAST,avx2_u16,KeyGen.Quant_PK,6397,100,ok,keygen public-key quantization
+Frost,256,FAST,avx2_u16,KeyGen.Random,4220,100,ok,randombytes for keygen seeds
+Frost,256,FAST,avx2_u16,KeyGen.Sample_S,2374,100,ok,CBD transform for S
+Frost,256,FAST,avx2_u16,KeyGen.SeedExpand,185204,100,ok,seed_A and S XOF expansion

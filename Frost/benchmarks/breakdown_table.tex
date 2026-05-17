@@ -1,0 +1,17 @@
+% Generated from Frost/benchmarks/breakdown_profile.csv. Values are kCycles.
+\begin{table}[t]
+\centering
+\caption{The component timings are collected under the profiling build and are reported as context-qualified profiling medians. They are intended to identify implementation bottlenecks. They are not additive decompositions of the normal full-KEM timings. Full KEM KeyGen, Encaps, and Decaps timings are reported separately using the normal benchmark harness.}
+\begin{tabular}{rrrrrrrrrrrrrr}
+\toprule
+Level & Impl. & KG Expand A & KG A*S & KG Quant & Enc Expand A & Enc A^T*R & Enc B^T*R & Enc Quant & Dec S^T*U & Dec ReEnc A^T*R & Dec ReEnc B^T*R & Dec Quant & Hash/KDF \\
+\midrule
+128 & REFERENCE/ref & 243.7 & 324.0 & 1.5 & 545.0 & 611.7 & 12.6 & 1.9 & 5.3 & 611.4 & 12.5 & 2.9 & 171.0 \\
+128 & FAST/avx2_u16 & 291.6 & 201.0 & 1.5 & 248.3 & 146.9 & 12.5 & 1.9 & 5.8 & 146.5 & 12.5 & 2.8 & 170.8 \\
+192 & REFERENCE/ref & 922.0 & 1114.1 & 5.9 & 1453.4 & 1480.3 & 22.5 & 6.4 & 9.9 & 1446.5 & 22.5 & 7.3 & 414.3 \\
+192 & FAST/avx2_u16 & 947.4 & 746.4 & 5.8 & 809.1 & 553.8 & 22.5 & 6.4 & 9.3 & 623.5 & 22.5 & 7.1 & 413.6 \\
+256 & REFERENCE/ref & 1849.1 & 2082.4 & 6.7 & 2442.3 & 2486.2 & 31.4 & 7.1 & 13.3 & 2399.8 & 31.4 & 7.9 & 646.6 \\
+256 & FAST/avx2_u16 & 1750.8 & 1120.7 & 6.4 & 1575.1 & 1097.0 & 31.5 & 7.0 & 13.1 & 993.2 & 31.4 & 7.8 & 646.2 \\
+\bottomrule
+\end{tabular}
+\end{table}
