@@ -3,7 +3,7 @@
  *
  * See instructions for usage below.
  * Software originally developed by Douglas Stebila.
- * Most recent version at https://gist.github.com/dstebila/6980008ec98209ef6075
+ * Benchmark utility source retained with anonymized provenance note
  *
  * This is free and unencumbered software released into the public domain.
  *

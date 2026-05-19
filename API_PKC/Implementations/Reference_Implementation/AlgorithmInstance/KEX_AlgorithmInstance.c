@@ -1,5 +1,5 @@
 ﻿/*
-The software is provided by the Institute of Commercial Cryptography Standards
+Frost reference implementation support code.
 (ICCS), and is used for algorithm submissions in the Next-generation Commercial
 Cryptographic Algorithms Program (NGCC).
 

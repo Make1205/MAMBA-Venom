@@ -57,16 +57,8 @@ focused on `MAMBA-Frost` / `Frost.KEM`.
 
 ## Paper
 
-```bibtex
-@misc{cryptoeprint:2024/714,
-      author = {Shanxiang Lyu and Ling Liu and Cong Ling},
-      title = {Learning With Quantization: A Ciphertext Efficient Lattice Problem with Tight Security Reduction from {LWE}},
-      howpublished = {Cryptology {ePrint} Archive, Paper 2024/714},
-      year = {2024},
-      url = {https://eprint.iacr.org/2024/714}
-}
-```
+Paper metadata is omitted in this anonymous submission package.
 
 ## Contact
 
-- Email: `make2024@stu2024.jnu.edu.cn`
+Contact details are omitted in this anonymous submission package.
