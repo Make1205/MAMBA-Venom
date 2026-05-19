@@ -164,7 +164,6 @@ int frost_mul_add_sa_plus_e(uint16_t *out, const uint16_t *s, uint16_t *e, const
   // Inputs: s', e' (N_BAR x N)
   // Output: out = s'*A + e' (N_BAR x N)
   // The matrix multiplication uses the row-wise blocking and packing (RWCF) approach described in: J.W. Bos, M. Ofner, J. Renes,
-  // T. Schneider, C. van Vredendaal, "The Matrix Reloaded: Multiplication Strategies in FrodoKEM". https://eprint.iacr.org/2021/711
     int i, j, q, p;
     ALIGN_HEADER(32) uint16_t A[PARAMS_N*8] ALIGN_FOOTER(32) = {0};
 #ifdef PROFILE_ALL_LEVELS
