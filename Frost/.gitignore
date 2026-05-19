@@ -8,9 +8,9 @@
 Debug/
 Win32/
 x64/
-/frodo640
-/frodo976
-/frodo1344
+/frost128
+/frost192
+/frost256
 objs/
 
 # Visual Studio cache directory and files
