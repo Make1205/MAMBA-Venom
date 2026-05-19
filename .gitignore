@@ -1,0 +1,28 @@
+# General build artifacts and temporary files
+*.o
+*.a
+*.so
+*.d
+*.exe
+*.out
+
+# Archives
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+
+# Logs and crash dumps
+*.log
+core.*
+*.stackdump
+
+# Common transient directories
+build/
+output/
+tmp/
+__pycache__/
+.pytest_cache/
+
+# OS/editor noise
+.DS_Store
